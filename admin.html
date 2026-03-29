@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>BarberCash Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--surface:#111;--surface2:#1a1a1a;--surface3:#222;
+  --border:#2a2a2a;--border2:#333;
+  --gold:#c9a84c;--gold-light:#e8c870;--gold-dim:#7a6230;
+  --text:#f0ede8;--muted:#666;--muted2:#444;
+  --red:#e05555;--green:#4caf78;--blue:#5b9cf6;--purple:#9b7de8;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
+/* ── LOGIN ── */
+.login-wrap{display:flex;align-items:center;justify-content:center;height:100vh;padding:24px;overflow-y:auto}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px 24px;width:100%;max-width:400px}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.login-logo-icon{width:44px;height:44px;background:var(--gold);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.login-logo-text{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold)}
+.login-logo-badge{font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-left:4px}
+.login-field{margin-bottom:14px}
+.login-field label{display:block;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.inp{width:100%;background:#0a0a0a;border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:16px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--gold-dim)}
+.btn-login{width:100%;padding:14px;background:var(--gold);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Playfair Display',serif;letter-spacing:1px;margin-top:6px;transition:opacity .2s}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+.login-err{font-size:12px;color:var(--red);background:rgba(224,85,85,.1);border-radius:8px;padding:8px 12px;margin-top:8px;display:none}
+/* ── LAYOUT DESKTOP ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:180px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;transition:transform .3s}
+.sidebar::-webkit-scrollbar{display:none}
+.sidebar-logo{padding:18px 14px 14px;border-bottom:1px solid var(--border)}
+.sidebar-logo-row{display:flex;align-items:center;gap:10px}
+.sidebar-logo-icon{width:32px;height:32px;background:var(--gold);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.sidebar-logo-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--gold)}
+.sidebar-logo-sub{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+.sidebar-nav{padding:10px 6px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s;margin-bottom:2px}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(201,168,76,.12);color:var(--gold)}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-section{font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:1.5px;padding:8px 12px 4px;margin-top:8px}
+.sidebar-footer{padding:10px 6px;border-top:1px solid var(--border)}
+.btn-logout-side{width:100%;padding:9px 12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:8px;transition:all .2s}
+.btn-logout-side:hover{border-color:var(--red);color:var(--red)}
+/* ── TOPBAR MOBILE ── */
+.topbar{display:none;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.topbar-logo{display:flex;align-items:center;gap:8px}
+.topbar-logo-icon{width:28px;height:28px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.topbar-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)}
+.hamburger{background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:5px}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px;transition:all .3s}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99}
+.drawer-overlay.show{display:block}
+/* ── MAIN ── */
+.app-body{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.main{flex:1;overflow-y:auto;padding:24px}
+.main::-webkit-scrollbar{width:4px}
+.main::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+/* ── CARDS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px}
+.stat-val{font-family:'Playfair Display',serif;font-size:24px;color:var(--gold);margin-bottom:4px}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-sub{font-size:11px;color:var(--green);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+.card-title{font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;font-weight:600}
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border2)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-premium{background:rgba(201,168,76,.15);color:var(--gold);border:1px solid var(--gold-dim)}
+.badge-trial{background:rgba(91,156,246,.1);color:var(--blue);border:1px solid rgba(91,156,246,.3)}
+.badge-expirado{background:rgba(224,85,85,.1);color:var(--red);border:1px solid rgba(224,85,85,.3)}
+/* ── BUTTONS ── */
+.btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;transition:all .15s}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-gold{background:var(--gold);color:#000}
+.btn-gold:hover{background:var(--gold-light)}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-red{background:var(--red);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-primary-full{width:100%;padding:14px;background:var(--gold);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Playfair Display',serif;letter-spacing:1px;transition:opacity .2s}
+.btn-primary-full:hover{opacity:.9}
+/* ── FORM FIELDS ── */
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+textarea.inp{resize:vertical;min-height:80px;font-size:14px}
+/* ── TOGGLE ── */
+.toggle-wrap{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border2)}
+.toggle-wrap:last-child{border-bottom:none}
+.toggle-label{font-size:14px}
+.toggle-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.toggle{width:40px;height:22px;background:var(--surface2);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;border:1px solid var(--border);flex-shrink:0}
+.toggle.on{background:var(--green);border-color:var(--green)}
+.toggle-knob{position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .2s}
+.toggle.on .toggle-knob{left:20px}
+/* ── NOTIFICATION ── */
+.notif-preview{background:#0a0a0a;border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:8px}
+.notif-preview-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.notif-bubble{background:var(--surface2);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--text);line-height:1.5}
+/* ── FEEDBACK ── */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-8px);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{background:var(--green);color:#fff}
+.toast.err{background:var(--red);color:#fff}
+/* ── LOADING ── */
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:14px;color:var(--muted);font-size:13px}
+/* ── MISC ── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:14px}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.search-bar{width:100%;background:#0a0a0a;border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:16px}
+.search-bar:focus{border-color:var(--gold-dim)}
+.chip-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:6px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--gold-dim);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;color:var(--gold-light);flex-shrink:0}
+.row-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.section-divider{height:1px;background:var(--border);margin:20px 0}
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  html,body{overflow:auto}
+  .app{flex-direction:column;height:100vh;overflow:hidden}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:260px;z-index:100;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .topbar{display:flex}
+  .app-body{height:calc(100vh - 53px)}
+  .main{padding:16px}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .field-row{grid-template-columns:1fr}
+  .field-row3{grid-template-columns:1fr}
+  .page-title{font-size:18px}
+  td{padding:8px 10px;font-size:12px}
+  th{padding:6px 10px}
+  .row-actions{gap:4px}
+  .btn-sm{padding:4px 8px;font-size:11px}
+  .stat-val{font-size:20px}
+  .login-box{padding:24px 18px}
+}
+.pass-wrap{position:relative}
+.pass-wrap .inp{padding-right:44px}
+.pass-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;display:flex;align-items:center;justify-content:center}
+.pass-eye:hover{color:var(--text)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .2s ease forwards}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div id="login-wrap" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">✂</div>
+      <div>
+        <div class="login-logo-row" style="display:flex;align-items:center;gap:6px">
+          <span class="login-logo-text">BarberCash</span>
+          <span class="login-logo-badge">Admin</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Painel de Controle</div>
+      </div>
+    </div>
+    <div class="login-field">
+      <label>E-mail admin</label>
+      <input class="inp" id="adm-email" type="email" placeholder="admin@exemplo.com"/>
+    </div>
+    <div class="login-field">
+      <label>Senha</label>
+      <div class="pass-wrap">
+        <input class="inp" id="adm-senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLoginAdmin()"/>
+        <button class="pass-eye" type="button" onclick="toggleVerSenha('adm-senha',this)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <button class="btn-login" id="btn-login-adm" onclick="fazerLoginAdmin()">Entrar no Painel</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="admin-app" class="app" style="display:none">
+  <!-- DRAWER OVERLAY (mobile) -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="fecharMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-row">
+        <div class="sidebar-logo-icon">✂</div>
+        <div>
+          <div class="sidebar-logo-title">BarberCash</div>
+          <div class="sidebar-logo-sub">Admin</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section">Geral</div>
+      <div class="nav-item active" onclick="irPagina('dashboard',this)"><span class="ni">📊</span>Dashboard</div>
+      <div class="nav-item" onclick="irPagina('usuarios',this)"><span class="ni">👥</span>Usuários</div>
+      <div class="nav-section">App</div>
+      <div class="nav-item" onclick="irPagina('textos',this)"><span class="ni">✏️</span>Textos & Preços</div>
+      <div class="nav-item" onclick="irPagina('pagamentos',this)"><span class="ni">💳</span>Pagamentos</div>
+      <div class="nav-item" onclick="irPagina('notificacoes',this)"><span class="ni">📢</span>Notificações</div>
+      <div class="nav-section">Admin</div>
+      <div class="nav-item" onclick="irPagina('conta',this)"><span class="ni">🔐</span>Minha Conta</div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn-logout-side" onclick="fazerLogoutAdmin()">🚪 Sair do painel</button>
+    </div>
+  </div>
+
+  <!-- APP BODY -->
+  <div class="app-body">
+    <!-- TOPBAR MOBILE -->
+    <div class="topbar">
+      <div class="topbar-logo">
+        <div class="topbar-logo-icon">✂</div>
+        <span class="topbar-title">BarberCash</span>
+      </div>
+      <button class="hamburger" id="hamburger" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Visão geral do BarberCash</div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="spinner" style="width:24px;height:24px;margin:0"></div></div>
+        <div class="stat-card"></div><div class="stat-card"></div><div class="stat-card"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Usuários Recentes</div>
+        <div id="dashboard-users-list"><div class="loading-wrap"><div class="spinner"></div><span>Carregando...</span></div></div>
+      </div>
+    </div>
+
+    <!-- USUÁRIOS -->
+    <div class="page" id="page-usuarios">
+      <div class="page-title">Usuários</div>
+      <div class="page-sub">Gerencie todos os usuários cadastrados</div>
+      <input class="search-bar" id="search-usuarios" placeholder="🔍 Buscar por nome ou e-mail..." oninput="filtrarUsuarios()"/>
+      <div class="card">
+        <div id="tabela-usuarios"><div class="loading-wrap"><div class="spinner"></div><span>Carregando...</span></div></div>
+      </div>
+    </div>
+
+    <!-- TEXTOS & PREÇOS -->
+    <div class="page" id="page-textos">
+      <div class="page-title">Textos & Preços</div>
+      <div class="page-sub">Altere configurações globais do app sem subir código</div>
+      <div class="card">
+        <div class="card-title">Plano Premium</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Preço mensal (R$)</label>
+            <input class="inp" id="cfg-preco" type="number" step="0.01" placeholder="19.90"/>
+          </div>
+          <div class="field">
+            <label>Dias de trial</label>
+            <input class="inp" id="cfg-trial-dias" type="number" placeholder="30"/>
+          </div>
+        </div>
+        <div class="field">
+          <label>Texto do botão de upgrade</label>
+          <input class="inp" id="cfg-btn-upgrade" placeholder="Assinar Premium"/>
+        </div>
+        <div class="field">
+          <label>Descrição do plano premium</label>
+          <textarea class="inp" id="cfg-desc-premium" placeholder="Acesso completo a todos os recursos..."></textarea>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Contato & Suporte</div>
+        <div class="field">
+          <label>WhatsApp (com DDI, ex: 5511999999999)</label>
+          <input class="inp" id="cfg-whatsapp" placeholder="5511999999999"/>
+        </div>
+        <div class="field">
+          <label>Instagram</label>
+          <input class="inp" id="cfg-instagram" placeholder="@barbercash"/>
+        </div>
+        <div class="field">
+          <label>Mensagem de suporte no app</label>
+          <input class="inp" id="cfg-suporte-msg" placeholder="Para assinar, entre em contato via WhatsApp ou Instagram"/>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Código de Ativação Premium</div>
+        <div class="field">
+          <label>Código de ativação manual</label>
+          <input class="inp" id="cfg-codigo-premium" placeholder="BARBER2025"/>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:14px">Usuários que inserem este código ativam o premium diretamente.</div>
+      </div>
+      <button class="btn-primary-full" onclick="salvarConfiguracoes()">💾 Salvar Configurações</button>
+    </div>
+
+    <!-- PAGAMENTOS -->
+    <div class="page" id="page-pagamentos">
+      <div class="page-title">Pagamentos</div>
+      <div class="page-sub">Configure as formas de pagamento disponíveis no app</div>
+      <div class="card">
+        <div class="card-title">Formas de Pagamento</div>
+        <div class="toggle-wrap">
+          <div><div class="toggle-label">◈ Pix</div><div class="toggle-sub">Pagamento via chave PIX</div></div>
+          <div class="toggle on" id="tog-pix" onclick="togglePag(this,'pix')"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-wrap">
+          <div><div class="toggle-label">$ Dinheiro</div><div class="toggle-sub">Pagamento em espécie</div></div>
+          <div class="toggle on" id="tog-dinheiro" onclick="togglePag(this,'dinheiro')"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-wrap">
+          <div><div class="toggle-label">▣ Cartão</div><div class="toggle-sub">Crédito e débito</div></div>
+          <div class="toggle on" id="tog-cartao" onclick="togglePag(this,'cartao')"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Forma Padrão</div>
+        <div class="field">
+          <label>Forma de pagamento selecionada por padrão</label>
+          <select class="inp" id="cfg-pag-padrao" style="cursor:pointer">
+            <option value="pix">Pix</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="cartao">Cartão</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Nomes das Formas de Pagamento</div>
+        <div class="field-row3">
+          <div class="field"><label>Nome do Pix</label><input class="inp" id="cfg-nome-pix" placeholder="Pix"/></div>
+          <div class="field"><label>Nome do Dinheiro</label><input class="inp" id="cfg-nome-dinheiro" placeholder="Dinheiro"/></div>
+          <div class="field"><label>Nome do Cartão</label><input class="inp" id="cfg-nome-cartao" placeholder="Cartão"/></div>
+        </div>
+      </div>
+      <button class="btn-primary-full" onclick="salvarPagamentos()">💾 Salvar Pagamentos</button>
+    </div>
+
+    <!-- NOTIFICAÇÕES -->
+    <div class="page" id="page-notificacoes">
+      <div class="page-title">Notificações</div>
+      <div class="page-sub">Envie avisos para todos os usuários do app</div>
+      <div class="card">
+        <div class="card-title">Nova Notificação</div>
+        <div class="field">
+          <label>Título</label>
+          <input class="inp" id="notif-titulo" placeholder="Ex: Nova atualização disponível!" oninput="previewNotif()"/>
+        </div>
+        <div class="field">
+          <label>Mensagem</label>
+          <textarea class="inp" id="notif-msg" placeholder="Ex: Adicionamos novas funcionalidades ao BarberCash. Confira!" oninput="previewNotif()"></textarea>
+        </div>
+        <div class="field">
+          <label>Tipo</label>
+          <select class="inp" id="notif-tipo" style="cursor:pointer">
+            <option value="info">ℹ️ Informação</option>
+            <option value="ok">✅ Sucesso</option>
+            <option value="aviso">⚠️ Aviso</option>
+            <option value="promo">🎁 Promoção</option>
+          </select>
+        </div>
+        <div class="notif-preview">
+          <div class="notif-preview-title">Preview</div>
+          <div class="notif-bubble" id="notif-preview-bubble">Preencha o título e a mensagem para ver o preview.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Destinatários</div>
+        <div class="toggle-wrap">
+          <div><div class="toggle-label">Todos os usuários</div><div class="toggle-sub">Envia para todos cadastrados</div></div>
+          <div class="toggle on" id="tog-todos" onclick="toggleDestinatarios(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-wrap">
+          <div><div class="toggle-label">Apenas usuários trial</div><div class="toggle-sub">Para incentivar upgrade</div></div>
+          <div class="toggle" id="tog-trial" onclick="toggleDestinatarios(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-wrap">
+          <div><div class="toggle-label">Apenas premium</div><div class="toggle-sub">Novidades exclusivas</div></div>
+          <div class="toggle" id="tog-premium-dest" onclick="toggleDestinatarios(this)"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+      <button class="btn-primary-full" onclick="enviarNotificacao()">📢 Enviar Notificação</button>
+      <div class="section-divider"></div>
+      <div class="card">
+        <div class="card-title">Histórico de Notificações</div>
+        <div id="notif-historico"><div class="loading-wrap"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- MINHA CONTA -->
+    <div class="page" id="page-conta">
+      <div class="page-title">Minha Conta</div>
+      <div class="page-sub">Altere e-mail e/ou senha e clique em Salvar</div>
+      <div class="card">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Logado como: <span id="admin-email-atual" style="color:var(--gold)"></span></div>
+        <div class="field">
+          <label>Senha atual (obrigatório)</label>
+          <div class="pass-wrap">
+            <input class="inp" id="senha-atual" type="password" placeholder="••••••••"/>
+            <button class="pass-eye" type="button" onclick="toggleVerSenha('senha-atual',this)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+        </div>
+        <div class="section-divider"></div>
+        <div class="field">
+          <label>Novo e-mail <span style="color:var(--muted);font-size:10px">(deixe vazio para não alterar)</span></label>
+          <input class="inp" id="novo-email" type="email" placeholder="novo@exemplo.com"/>
+        </div>
+        <div class="field">
+          <label>Nova senha <span style="color:var(--muted);font-size:10px">(deixe vazio para não alterar)</span></label>
+          <div class="pass-wrap">
+            <input class="inp" id="senha-nova" type="password" placeholder="Mínimo 6 caracteres"/>
+            <button class="pass-eye" type="button" onclick="toggleVerSenha('senha-nova',this)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:20px">
+          <label>Confirmar nova senha</label>
+          <div class="pass-wrap">
+            <input class="inp" id="senha-nova-conf" type="password" placeholder="Repita a nova senha"/>
+            <button class="pass-eye" type="button" onclick="toggleVerSenha('senha-nova-conf',this)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+        </div>
+        <button class="btn-primary-full" onclick="salvarConta()">💾 Salvar Alterações</button>
+      </div>
+    </div>
+
+    </div><!-- /main -->
+  </div><!-- /app-body -->
+</div><!-- /admin-app -->
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, collection, addDoc, orderBy, query, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
+  authDomain: "barbercash-f6891.firebaseapp.com",
+  projectId: "barbercash-f6891",
+  storageBucket: "barbercash-f6891.firebasestorage.app",
+  messagingSenderId: "222760224757",
+  appId: "1:222760224701:web:afa93064a97b10c28c34d4"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// E-mail admin carregado do Firestore — não precisa alterar no código
+let ADMIN_EMAIL = null;
+
+async function carregarAdminEmail(){
+  try{
+    const d = await getDoc(doc(db,'admin','config'));
+    if(d.exists() && d.data().email){
+      ADMIN_EMAIL = d.data().email;
+    }else{
+      // Primeira vez: cria o registro com o e-mail padrão
+      ADMIN_EMAIL = 'admin@barbercash.com';
+      await setDoc(doc(db,'admin','config'),{email: ADMIN_EMAIL});
+    }
+  }catch(e){
+    ADMIN_EMAIL = 'admin@barbercash.com';
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const eyeOpen=`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const eyeClosed=`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+window.toggleVerSenha=function(id,btn){
+  const inp=document.getElementById(id);
+  if(inp.type==='password'){inp.type='text';btn.innerHTML=eyeClosed;}
+  else{inp.type='password';btn.innerHTML=eyeOpen;}
+};
+let toastTimer;
+function toast(msg, tipo='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast show ${tipo}`;
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.className='toast',3000);
+}
+function brl(v){return Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function fmtDate(ts){
+  if(!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('pt-BR');
+}
+
+// Cache de usuários
+let allUsers = [];
+let globalCfg = {};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+window.fazerLoginAdmin = async function(){
+  const email = document.getElementById('adm-email').value.trim();
+  const senha = document.getElementById('adm-senha').value;
+  const errEl = document.getElementById('login-err');
+  const btn = document.getElementById('btn-login-adm');
+  errEl.style.display='none';
+  if(!email||!senha){errEl.textContent='Preencha e-mail e senha.';errEl.style.display='block';return;}
+  btn.disabled=true; btn.textContent='Entrando...';
+  try{
+    // Carrega o e-mail admin do Firestore antes de validar
+    await carregarAdminEmail();
+    if(email !== ADMIN_EMAIL){
+      errEl.textContent='Acesso negado. Esta área é restrita.';
+      errEl.style.display='block';
+      btn.disabled=false; btn.textContent='Entrar no Painel';
+      return;
+    }
+    await signInWithEmailAndPassword(auth, email, senha);
+  }catch(e){
+    const msgs={'auth/invalid-credential':'E-mail ou senha incorretos.','auth/user-not-found':'Usuário não encontrado.','auth/wrong-password':'Senha incorreta.'};
+    errEl.textContent=msgs[e.code]||'Erro ao entrar.';
+    errEl.style.display='block';
+    btn.disabled=false; btn.textContent='Entrar no Painel';
+  }
+};
+
+// ── MINHA CONTA ───────────────────────────────────────────────────────────────
+window.salvarConta = async function(){
+  const senhaAtual = document.getElementById('senha-atual').value;
+  const novoEmail  = document.getElementById('novo-email').value.trim();
+  const senhaNova  = document.getElementById('senha-nova').value;
+  const senhaConf  = document.getElementById('senha-nova-conf').value;
+
+  if(!senhaAtual){toast('Digite sua senha atual.','err');return;}
+
+  const alterarEmail = novoEmail.length > 0;
+  const alterarSenha = senhaNova.length > 0;
+
+  if(!alterarEmail && !alterarSenha){
+    toast('Preencha ao menos um campo para alterar.','err');return;
+  }
+  if(alterarSenha && senhaNova.length < 6){
+    toast('Nova senha precisa ter ao menos 6 caracteres.','err');return;
+  }
+  if(alterarSenha && senhaNova !== senhaConf){
+    toast('As senhas não coincidem.','err');return;
+  }
+
+  const user = auth.currentUser;
+  if(!user){toast('Sessão expirada. Faça login novamente.','err');return;}
+
+  try{
+    // Refaz o login completo com e-mail + senha atual — mais confiável que reauthenticate
+    const emailAtual = user.email;
+    await signInWithEmailAndPassword(auth, emailAtual, senhaAtual);
+    const userFresh = auth.currentUser;
+
+    // Altera senha primeiro (se preenchida)
+    if(alterarSenha){
+      await updatePassword(userFresh, senhaNova);
+    }
+
+    // Altera e-mail depois (se preenchido)
+    if(alterarEmail){
+      await updateEmail(userFresh, novoEmail);
+      await setDoc(doc(db,'admin','config'),{email: novoEmail});
+      ADMIN_EMAIL = novoEmail;
+      document.getElementById('admin-email-atual').textContent = novoEmail;
+    }
+
+    // Limpa campos
+    document.getElementById('senha-atual').value='';
+    document.getElementById('novo-email').value='';
+    document.getElementById('senha-nova').value='';
+    document.getElementById('senha-nova-conf').value='';
+
+    if(alterarEmail){
+      toast('E-mail alterado! Faça login com o novo e-mail.','ok');
+      setTimeout(()=>signOut(auth), 2500);
+    } else {
+      toast('Senha alterada com sucesso! ✓','ok');
+    }
+
+  }catch(e){
+    const msgs={
+      'auth/wrong-password'       :'Senha atual incorreta.',
+      'auth/invalid-credential'   :'Senha atual incorreta.',
+      'auth/email-already-in-use' :'Este e-mail já está em uso.',
+      'auth/invalid-email'        :'E-mail inválido.',
+      'auth/weak-password'        :'Nova senha muito fraca (mín. 6 caracteres).',
+      'auth/requires-recent-login':'Erro de sessão. Faça logout e login novamente.',
+      'auth/user-mismatch'        :'Credenciais não correspondem ao usuário atual.',
+    };
+    toast(msgs[e.code]||('Erro: '+e.code),'err');
+  }
+};
+
+window.fazerLogoutAdmin = async function(){
+  await signOut(auth);
+};
+
+onAuthStateChanged(auth, async user => {
+  if(user){
+    // Sempre carrega o e-mail admin do Firestore antes de validar
+    await carregarAdminEmail();
+    if(user.email === ADMIN_EMAIL){
+      document.getElementById('login-wrap').style.display='none';
+      document.getElementById('admin-app').style.display='flex';
+      const emailEl=document.getElementById('admin-email-atual');
+      if(emailEl)emailEl.textContent=user.email;
+      await carregarTudo();
+    }else{
+      await signOut(auth);
+      const errEl=document.getElementById('login-err');
+      errEl.textContent='Acesso negado. Esta área é restrita.';
+      errEl.style.display='block';
+      document.getElementById('login-wrap').style.display='flex';
+      document.getElementById('admin-app').style.display='none';
+    }
+  }else{
+    document.getElementById('login-wrap').style.display='flex';
+    document.getElementById('admin-app').style.display='none';
+  }
+});
+
+// ── NAVEGAÇÃO ─────────────────────────────────────────────────────────────────
+window.toggleMenu = function(){
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('drawer-overlay');
+  const hamburger = document.getElementById('hamburger');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('show');
+  hamburger.classList.toggle('open');
+};
+window.fecharMenu = function(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('show');
+  document.getElementById('hamburger').classList.remove('open');
+};
+window.irPagina = function(id, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+  fecharMenu(); // fecha drawer no mobile ao navegar
+};
+
+// ── CARREGAR DADOS ────────────────────────────────────────────────────────────
+async function carregarTudo(){
+  await Promise.all([carregarUsuarios(), carregarConfiguracoes(), carregarNotifHistorico()]);
+  renderDashboard();
+  renderTabelaUsuarios();
+}
+
+async function carregarUsuarios(){
+  try{
+    const snap = await getDocs(collection(db,'users'));
+    allUsers = [];
+    for(const d of snap.docs){
+      const cfg = await getDoc(doc(db,'users',d.id,'config','main'));
+      const data = cfg.exists() ? cfg.data() : {};
+      allUsers.push({uid: d.id, ...data});
+    }
+  }catch(e){console.error(e);}
+}
+
+async function carregarConfiguracoes(){
+  try{
+    const cfgDoc = await getDoc(doc(db,'admin','config'));
+    globalCfg = cfgDoc.exists() ? cfgDoc.data() : {};
+    preencherFormularios();
+  }catch(e){console.error(e);}
+}
+
+async function carregarNotifHistorico(){
+  try{
+    const snap = await getDocs(query(collection(db,'admin','notificacoes','lista'), orderBy('criadoEm','desc')));
+    const el = document.getElementById('notif-historico');
+    if(snap.empty){el.innerHTML=`<div class="empty"><div class="empty-icon">📭</div>Nenhuma notificação enviada ainda.</div>`;return;}
+    el.innerHTML='';
+    snap.docs.slice(0,10).forEach(d=>{
+      const n=d.data();
+      const row=document.createElement('div');
+      row.style.cssText='padding:12px 0;border-bottom:1px solid var(--border2);display:flex;align-items:flex-start;gap:12px';
+      const tipoIcons={info:'ℹ️',ok:'✅',aviso:'⚠️',promo:'🎁'};
+      row.innerHTML=`
+        <div style="font-size:20px;margin-top:2px">${tipoIcons[n.tipo]||'📢'}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;margin-bottom:2px">${n.titulo||'(sem título)'}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${n.mensagem||''}</div>
+          <div style="font-size:11px;color:var(--muted2)">${n.criadoEm?fmtDate(n.criadoEm):'—'} · ${n.destinatarios||'todos'}</div>
+        </div>`;
+      el.appendChild(row);
+    });
+  }catch(e){
+    document.getElementById('notif-historico').innerHTML=`<div class="empty">Erro ao carregar histórico.</div>`;
+  }
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const total = allUsers.length;
+  const premium = allUsers.filter(u=>u.plano?.premium).length;
+  const trial = allUsers.filter(u=>!u.plano?.premium && u.plano?.inicio && diasRestantes(u.plano.inicio)>0).length;
+  const expirados = allUsers.filter(u=>!u.plano?.premium && (!u.plano?.inicio || diasRestantes(u.plano.inicio)<=0)).length;
+
+  document.getElementById('stats-grid').innerHTML=`
+    <div class="stat-card fade-in"><div class="stat-val">${total}</div><div class="stat-label">Usuários total</div></div>
+    <div class="stat-card fade-in"><div class="stat-val" style="color:var(--gold)">${premium}</div><div class="stat-label">Premium ativos</div></div>
+    <div class="stat-card fade-in"><div class="stat-val" style="color:var(--blue)">${trial}</div><div class="stat-label">Em trial</div></div>
+    <div class="stat-card fade-in"><div class="stat-val" style="color:var(--red)">${expirados}</div><div class="stat-label">Trial expirado</div></div>
+  `;
+
+  const listEl = document.getElementById('dashboard-users-list');
+  if(!allUsers.length){listEl.innerHTML=`<div class="empty"><div class="empty-icon">👥</div>Nenhum usuário ainda.</div>`;return;}
+  listEl.innerHTML='';
+  const wrap = document.createElement('div');wrap.className='table-wrap';
+  const table = document.createElement('table');
+  table.innerHTML=`<thead><tr><th>Usuário</th><th>Plano</th><th>Trial restante</th></tr></thead>`;
+  const tbody = document.createElement('tbody');
+  allUsers.slice(0,5).forEach(u=>{
+    const tr=document.createElement('tr');
+    const badge = getBadge(u);
+    const dias = u.plano?.inicio ? diasRestantes(u.plano.inicio) : '—';
+    tr.innerHTML=`
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="user-avatar">${(u.nomeUsuario||'?')[0].toUpperCase()}</div>
+        <div><div style="font-size:13px;font-weight:500">${u.nomeUsuario||'—'}</div></div>
+      </div></td>
+      <td>${badge}</td>
+      <td style="color:var(--muted)">${u.plano?.premium?'—':dias+' dias'}</td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  listEl.appendChild(wrap);
+}
+
+function diasRestantes(inicio){
+  if(!inicio) return 0;
+  return Math.max(0, 30 - Math.floor((Date.now()-inicio)/(1000*60*60*24)));
+}
+
+function getBadge(u){
+  if(u.plano?.premium) return `<span class="badge badge-premium">✦ Premium</span>`;
+  if(u.plano?.inicio && diasRestantes(u.plano.inicio)>0) return `<span class="badge badge-trial">Trial · ${diasRestantes(u.plano.inicio)}d</span>`;
+  return `<span class="badge badge-expirado">Expirado</span>`;
+}
+
+// ── TABELA USUÁRIOS ───────────────────────────────────────────────────────────
+function renderTabelaUsuarios(filtro=''){
+  const el = document.getElementById('tabela-usuarios');
+  const lista = filtro
+    ? allUsers.filter(u=>(u.nomeUsuario||'').toLowerCase().includes(filtro.toLowerCase()))
+    : allUsers;
+
+  if(!lista.length){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">👥</div>${filtro?'Nenhum resultado.':'Nenhum usuário cadastrado.'}</div>`;
+    return;
+  }
+
+  const wrap=document.createElement('div');wrap.className='table-wrap';
+  const table=document.createElement('table');
+  table.innerHTML=`<thead><tr><th>Usuário</th><th>Plano</th><th>Trial restante</th><th>Barbeiros</th><th>Ações</th></tr></thead>`;
+  const tbody=document.createElement('tbody');
+
+  lista.forEach(u=>{
+    const tr=document.createElement('tr');
+    const badge=getBadge(u);
+    const dias=u.plano?.inicio?diasRestantes(u.plano.inicio):'—';
+    const numBarb=(u.barbeiros||[]).length;
+    tr.innerHTML=`
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="user-avatar">${(u.nomeUsuario||'?')[0].toUpperCase()}</div>
+        <div><div style="font-size:13px;font-weight:500">${u.nomeUsuario||'—'}</div><div style="font-size:11px;color:var(--muted)">${u.uid.slice(0,8)}...</div></div>
+      </div></td>
+      <td>${badge}</td>
+      <td style="color:var(--muted);font-size:12px">${u.plano?.premium?'—':dias+' dias'}</td>
+      <td style="color:var(--muted);font-size:12px">${numBarb}</td>
+      <td><div class="row-actions">
+        ${u.plano?.premium
+          ? `<button class="btn btn-sm btn-red" onclick="togglePremiumUsuario('${u.uid}',false)">Remover Premium</button>`
+          : `<button class="btn btn-sm btn-green" onclick="togglePremiumUsuario('${u.uid}',true)">Ativar Premium</button>`
+        }
+      </div></td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  el.innerHTML='';el.appendChild(wrap);
+}
+
+window.filtrarUsuarios = function(){
+  const q = document.getElementById('search-usuarios').value;
+  renderTabelaUsuarios(q);
+};
+
+window.togglePremiumUsuario = async function(uid, ativar){
+  try{
+    await updateDoc(doc(db,'users',uid,'config','main'),{
+      'plano.premium': ativar,
+      'plano.tipo': ativar?'premium':'trial',
+    });
+    const u = allUsers.find(u=>u.uid===uid);
+    if(u){ if(!u.plano) u.plano={};u.plano.premium=ativar; u.plano.tipo=ativar?'premium':'trial'; }
+    toast(ativar?'Premium ativado! ✓':'Premium removido.', ativar?'ok':'err');
+    renderTabelaUsuarios(document.getElementById('search-usuarios').value);
+    renderDashboard();
+  }catch(e){ toast('Erro ao atualizar.','err'); }
+};
+
+// ── CONFIGURAÇÕES ─────────────────────────────────────────────────────────────
+function preencherFormularios(){
+  const c = globalCfg;
+  if(c.preco) document.getElementById('cfg-preco').value=c.preco;
+  if(c.trialDias) document.getElementById('cfg-trial-dias').value=c.trialDias;
+  if(c.btnUpgrade) document.getElementById('cfg-btn-upgrade').value=c.btnUpgrade;
+  if(c.descPremium) document.getElementById('cfg-desc-premium').value=c.descPremium;
+  if(c.whatsapp) document.getElementById('cfg-whatsapp').value=c.whatsapp;
+  if(c.instagram) document.getElementById('cfg-instagram').value=c.instagram;
+  if(c.suporteMsg) document.getElementById('cfg-suporte-msg').value=c.suporteMsg;
+  if(c.codigoPremium) document.getElementById('cfg-codigo-premium').value=c.codigoPremium;
+  // Pagamentos
+  if(c.pagamentos){
+    const p=c.pagamentos;
+    if(p.pix===false) document.getElementById('tog-pix').classList.remove('on');
+    if(p.dinheiro===false) document.getElementById('tog-dinheiro').classList.remove('on');
+    if(p.cartao===false) document.getElementById('tog-cartao').classList.remove('on');
+    if(p.padrao) document.getElementById('cfg-pag-padrao').value=p.padrao;
+    if(p.nomePix) document.getElementById('cfg-nome-pix').value=p.nomePix;
+    if(p.nomeDinheiro) document.getElementById('cfg-nome-dinheiro').value=p.nomeDinheiro;
+    if(p.nomeCartao) document.getElementById('cfg-nome-cartao').value=p.nomeCartao;
+  }
+}
+
+window.salvarConfiguracoes = async function(){
+  const cfg = {
+    preco: document.getElementById('cfg-preco').value,
+    trialDias: parseInt(document.getElementById('cfg-trial-dias').value)||30,
+    btnUpgrade: document.getElementById('cfg-btn-upgrade').value,
+    descPremium: document.getElementById('cfg-desc-premium').value,
+    whatsapp: document.getElementById('cfg-whatsapp').value,
+    instagram: document.getElementById('cfg-instagram').value,
+    suporteMsg: document.getElementById('cfg-suporte-msg').value,
+    codigoPremium: document.getElementById('cfg-codigo-premium').value,
+    atualizadoEm: Date.now(),
+  };
+  try{
+    await setDoc(doc(db,'admin','config'), {...globalCfg, ...cfg}, {merge:true});
+    globalCfg={...globalCfg,...cfg};
+    toast('Configurações salvas! ✓','ok');
+  }catch(e){ toast('Erro ao salvar.','err'); }
+};
+
+// ── PAGAMENTOS ────────────────────────────────────────────────────────────────
+window.togglePag = function(el, key){
+  el.classList.toggle('on');
+};
+
+window.salvarPagamentos = async function(){
+  const pagamentos = {
+    pix: document.getElementById('tog-pix').classList.contains('on'),
+    dinheiro: document.getElementById('tog-dinheiro').classList.contains('on'),
+    cartao: document.getElementById('tog-cartao').classList.contains('on'),
+    padrao: document.getElementById('cfg-pag-padrao').value,
+    nomePix: document.getElementById('cfg-nome-pix').value||'Pix',
+    nomeDinheiro: document.getElementById('cfg-nome-dinheiro').value||'Dinheiro',
+    nomeCartao: document.getElementById('cfg-nome-cartao').value||'Cartão',
+  };
+  try{
+    await setDoc(doc(db,'admin','config'), {pagamentos, atualizadoEm:Date.now()}, {merge:true});
+    globalCfg.pagamentos=pagamentos;
+    toast('Pagamentos salvos! ✓','ok');
+  }catch(e){ toast('Erro ao salvar.','err'); }
+};
+
+// ── NOTIFICAÇÕES ──────────────────────────────────────────────────────────────
+window.previewNotif = function(){
+  const titulo = document.getElementById('notif-titulo').value;
+  const msg = document.getElementById('notif-msg').value;
+  const el = document.getElementById('notif-preview-bubble');
+  if(!titulo&&!msg){el.textContent='Preencha o título e a mensagem para ver o preview.';return;}
+  el.innerHTML=`<strong style="display:block;margin-bottom:4px;color:var(--gold)">${titulo||''}</strong>${msg||''}`;
+};
+
+window.toggleDestinatarios = function(el){
+  // Só um pode estar ativo por vez
+  ['tog-todos','tog-trial','tog-premium-dest'].forEach(id=>{
+    document.getElementById(id).classList.remove('on');
+  });
+  el.classList.add('on');
+};
+
+window.enviarNotificacao = async function(){
+  const titulo = document.getElementById('notif-titulo').value.trim();
+  const mensagem = document.getElementById('notif-msg').value.trim();
+  const tipo = document.getElementById('notif-tipo').value;
+  if(!titulo||!mensagem){toast('Preencha título e mensagem.','err');return;}
+
+  const dest = document.getElementById('tog-todos').classList.contains('on')?'todos'
+    : document.getElementById('tog-trial').classList.contains('on')?'trial':'premium';
+
+  try{
+    // Salva no Firestore — o app lê ao abrir
+    await addDoc(collection(db,'admin','notificacoes','lista'),{
+      titulo, mensagem, tipo, destinatarios:dest, criadoEm: Date.now(), lida:false
+    });
+    // Salva como notificação ativa (o app lê este doc ao abrir)
+    await setDoc(doc(db,'admin','notificacao_ativa'),{
+      titulo, mensagem, tipo, destinatarios:dest, criadoEm: Date.now()
+    });
+    toast('Notificação enviada! ✓','ok');
+    document.getElementById('notif-titulo').value='';
+    document.getElementById('notif-msg').value='';
+    document.getElementById('notif-preview-bubble').textContent='Preencha o título e a mensagem para ver o preview.';
+    await carregarNotifHistorico();
+  }catch(e){ toast('Erro ao enviar.','err'); }
+};
+</script>
+</body>
+</html>
