@@ -268,126 +268,7 @@ details>summary::marker{display:none}
 .cal-slot-status{font-size:9px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
 .cal-slot-del{position:absolute;top:3px;right:4px;background:none;border:none;font-size:12px;cursor:pointer;color:var(--muted2);line-height:1;padding:2px}
 
-.app-wrapper{
-  display:flex;
-  flex-direction:column;
-  height:100%;
-  width:100%;
-}
 
-/* ══════════════════════════════════════════════════════
-   RESPONSIVO — Tablet (≥768px) e Desktop (≥1024px)
-   ══════════════════════════════════════════════════════ */
-
-/* ── TABLET (768px+) ── */
-@media(min-width:768px){
-  html,body{overflow:auto}
-
-  #app{
-    max-width:100%;
-    flex-direction:row;
-    height:100vh;
-  }
-
-  .app-wrapper{
-    flex-direction:row;
-    height:100vh;
-  }
-
-  /* Sidebar esquerda no lugar do nav inferior */
-  .nav{
-    position:relative;
-    left:auto;transform:none;
-    width:200px;min-width:200px;max-width:200px;
-    flex-direction:column;
-    height:100vh;
-    border-top:none;
-    border-right:1px solid var(--border);
-    padding-bottom:0;
-    justify-content:flex-start;
-    padding-top:8px;
-    z-index:10;
-    order:-1;
-  }
-  .nav-btn{
-    flex:none;
-    padding:14px 20px;
-    font-size:13px;
-    border-top:none;
-    border-left:3px solid transparent;
-    border-radius:0 10px 10px 0;
-    justify-content:flex-start;
-    gap:12px;
-    width:100%;
-    margin-right:4px;
-  }
-  .nav-btn .nav-icon{font-size:20px}
-  .nav-btn.active{
-    border-top-color:transparent;
-    border-left-color:var(--gold);
-    background:rgba(201,168,76,.08);
-  }
-
-  /* Área principal */
-  .main-area{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    overflow:hidden;
-    height:100vh;
-  }
-
-  .body{
-    padding:20px 24px;
-    padding-bottom:24px;
-  }
-
-  /* Header */
-  .header{padding:14px 24px;}
-
-  /* Login centralizado */
-  .login-screen{max-width:420px;margin:0 auto;width:100%;}
-
-  /* Modal bottom-sheet vira modal centralizado */
-  .overlay{align-items:center;justify-content:center}
-  .modal{
-    border-radius:20px;
-    width:480px;
-    max-width:90vw;
-    transform:scale(.95);
-    max-height:80vh;
-  }
-  .overlay.show .modal{transform:scale(1);}
-
-  /* Cards em 2 colunas em algumas telas */
-  .metricas-grid{grid-template-columns:repeat(4,1fr);}
-  .resumo-dia{grid-template-columns:repeat(3,1fr);}
-}
-
-/* ── DESKTOP (1024px+) ── */
-@media(min-width:1024px){
-  .nav{width:220px;min-width:220px;}
-
-  .body{padding:24px 32px;}
-
-  /* Conteúdo em 2 colunas no Registrar e Config */
-  .two-col-layout{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:20px;
-    align-items:start;
-  }
-
-  .modal{width:540px;}
-
-  .login-screen{max-width:440px;}
-}
-
-/* ── WIDE DESKTOP (1280px+) ── */
-@media(min-width:1280px){
-  .nav{width:240px;min-width:240px;}
-  .body{max-width:960px;}
-}
 </style>
 </head>
 <body>
@@ -858,7 +739,7 @@ function getPagConfig(){
     padrao: p.padrao||'pix',
     nomePix: p.nomePix||'Pix',
     nomeDinheiro: p.nomeDinheiro||'Dinheiro',
-    nomeCartao: (p.nomeCartao||'Cartão').replace(/^Cartões$/i,'Cartão'),
+    nomeCartao: (p.nomeCartao||'Cartão').replace(/^Cart[aã]o?s$/i,'Cartão'),
   };
 }
 async function saveRegistro(reg){
@@ -1183,7 +1064,7 @@ window.handleAuth=async function(){
 // ── APP ───────────────────────────────────────────────────────────────────────
 function renderApp(){
   document.getElementById('root-content').innerHTML=`
-    <div class="app-wrapper">
+    <div style="display:flex;height:100%;width:100%">
       <nav class="nav">
         <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
         <button class="nav-btn" onclick="irTela('historico',this)"><span class="nav-icon">⏱</span>Histórico</button>
@@ -1718,6 +1599,16 @@ function renderConfig(){
   </div>`;
   card.appendChild(premCard);
   frag.appendChild(card);
+
+  // Bloco Premium — botão Suporte
+  const supBtnCard=div('card');
+  supBtnCard.innerHTML=`
+    <div class="card-title">Premium</div>
+    <button onclick="window.open('https://wa.me/5527988658676?text=${encodeURIComponent('Olá! Preciso de suporte com o BarberCash Premium.')}','_blank')"
+      style="width:100%;padding:14px;background:#25D366;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span style="font-size:20px">💬</span> Suporte via WhatsApp
+    </button>`;
+  frag.appendChild(supBtnCard);
 
   // Bloco Suporte WhatsApp
   const supCard=div('card');
