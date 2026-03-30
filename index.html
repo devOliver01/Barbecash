@@ -600,66 +600,92 @@ let state={
   corteNome:'',precoRaw:'',gorjetaRaw:'',gorjetaOn:false,pagamento:'pix',obs:'',
 };
 
-// ── FIRESTORE ─────────────────────────────────────────────────────────────────
-function salvarCacheRegistros(uid,registros){
-  try{LS.set('bc_regs_cache_'+uid,registros);}catch(e){}
-}
-function carregarCacheRegistros(uid){
-  return LS.get('bc_regs_cache_'+uid,[]);
-}
-function salvarCacheConfig(uid,cfg){
-  try{LS.set('bc_cfg_cache_'+uid,cfg);}catch(e){}
-}
-function carregarCacheConfig(uid){
-  return LS.get('bc_cfg_cache_'+uid,null);
+// ── LOCAL STORAGE POR USUÁRIO ─────────────────────────────────────────────────
+function _lkRegs(uid){ return 'bc_regs_'+uid; }
+function _lkCfg(uid){  return 'bc_cfg_'+uid;  }
+
+function salvarLocalUsuario(uid){
+  if(!uid) return;
+  try{
+    LS.set(_lkRegs(uid), state.registros);
+    LS.set(_lkCfg(uid), {
+      cortesLista:state.cortesLista, barbeiros:state.barbeiros,
+      barbeiroAtual:state.barbeiroAtual, metas:state.metas,
+      nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
+      chavePixTipo:state.chavePixTipo, plano:state.plano
+    });
+  }catch(e){ console.error('salvarLocalUsuario:',e); }
 }
 
-async function loadUserData(uid){
-  // Carrega cache local imediatamente para evitar tela vazia
-  const cacheRegs=carregarCacheRegistros(uid);
-  if(cacheRegs.length>0) state.registros=cacheRegs;
-  const cacheCfg=carregarCacheConfig(uid);
-  if(cacheCfg){
-    if(cacheCfg.cortesLista)state.cortesLista=cacheCfg.cortesLista;
-    if(cacheCfg.barbeiros)state.barbeiros=cacheCfg.barbeiros;
-    if(cacheCfg.barbeiroAtual)state.barbeiroAtual=cacheCfg.barbeiroAtual;
-    if(cacheCfg.metas)state.metas=cacheCfg.metas;
-    if(cacheCfg.nomeUsuario)state.nomeUsuario=cacheCfg.nomeUsuario;
-    if(cacheCfg.chavePix)state.chavePix=cacheCfg.chavePix;
-    if(cacheCfg.chavePixTipo)state.chavePixTipo=cacheCfg.chavePixTipo;
-    if(cacheCfg.plano)state.plano=cacheCfg.plano;
+function carregarLocalUsuario(uid){
+  if(!uid) return;
+  const cfg = LS.get(_lkCfg(uid), null);
+  if(cfg){
+    if(cfg.cortesLista)  state.cortesLista  = cfg.cortesLista;
+    if(cfg.barbeiros)    state.barbeiros    = cfg.barbeiros;
+    if(cfg.barbeiroAtual)state.barbeiroAtual= cfg.barbeiroAtual;
+    if(cfg.metas)        state.metas        = cfg.metas;
+    if(cfg.nomeUsuario)  state.nomeUsuario  = cfg.nomeUsuario;
+    if(cfg.chavePix)     state.chavePix     = cfg.chavePix;
+    if(cfg.chavePixTipo) state.chavePixTipo = cfg.chavePixTipo;
+    if(cfg.plano)        state.plano        = cfg.plano;
   }
+  const regs = LS.get(_lkRegs(uid), []);
+  if(regs.length > 0) state.registros = regs;
+}
+
+function limparLocalUsuario(uid){
+  if(!uid) return;
+  localStorage.removeItem(_lkRegs(uid));
+  localStorage.removeItem(_lkCfg(uid));
+}
+
+// ── FIRESTORE ─────────────────────────────────────────────────────────────────
+async function loadUserData(uid){
+  // 1. Carrega local primeiro — registros aparecem instantaneamente
+  carregarLocalUsuario(uid);
+
+  // 2. Sincroniza com Firestore em background
   setSyncing(true);
   try{
     const cfgDoc=await getDoc(doc(db,'users',uid,'config','main'));
     if(cfgDoc.exists()){
       const d=cfgDoc.data();
-      if(d.cortesLista)state.cortesLista=d.cortesLista;
-      if(d.barbeiros)state.barbeiros=d.barbeiros;
+      if(d.cortesLista)  state.cortesLista  =d.cortesLista;
+      if(d.barbeiros)    state.barbeiros    =d.barbeiros;
       if(d.barbeiroAtual)state.barbeiroAtual=d.barbeiroAtual;
-      if(d.metas)state.metas=d.metas;
-      if(d.nomeUsuario)state.nomeUsuario=d.nomeUsuario;
-      if(d.chavePix)state.chavePix=d.chavePix;
-      if(d.chavePixTipo)state.chavePixTipo=d.chavePixTipo;
-      if(d.plano)state.plano=d.plano;
-      salvarCacheConfig(uid,d);
+      if(d.metas)        state.metas        =d.metas;
+      if(d.nomeUsuario)  state.nomeUsuario  =d.nomeUsuario;
+      if(d.chavePix)     state.chavePix     =d.chavePix;
+      if(d.chavePixTipo) state.chavePixTipo =d.chavePixTipo;
+      if(d.plano)        state.plano        =d.plano;
     }
     const snap=await getDocs(query(collection(db,'users',uid,'registros'),orderBy('createdAt','desc')));
-    state.registros=snap.docs.map(d=>({id:d.id,...d.data()}));
-    salvarCacheRegistros(uid,state.registros);
+    // Só usa Firestore se ele realmente tiver registros — evita apagar local por resposta vazia
+    if(snap.docs.length > 0){
+      state.registros=snap.docs.map(d=>({id:d.id,...d.data()}));
+    }
+    // Atualiza cache local com dados da nuvem
+    salvarLocalUsuario(uid);
   }catch(e){
-    console.error('loadUserData erro (usando cache local):', e);
-    // Mantém o cache já carregado acima — registros não são perdidos
+    console.warn('Firestore indisponível, usando dados locais:', e.message||e);
   }
   setSyncing(false);
 }
+
 async function saveConfig(){
-  if(!state.uid)return;setSyncing(true);
-  const cfg={cortesLista:state.cortesLista,barbeiros:state.barbeiros,barbeiroAtual:state.barbeiroAtual,metas:state.metas,nomeUsuario:state.nomeUsuario,chavePix:state.chavePix,chavePixTipo:state.chavePixTipo,plano:state.plano};
+  if(!state.uid)return;
+  // Sempre salva local primeiro
+  salvarLocalUsuario(state.uid);
+  setSyncing(true);
   try{
-    await setDoc(doc(db,'users',state.uid,'config','main'),cfg);
-    salvarCacheConfig(state.uid,cfg);
-  }catch(e){console.error(e);}
+    await setDoc(doc(db,'users',state.uid,'config','main'),{
+      cortesLista:state.cortesLista, barbeiros:state.barbeiros,
+      barbeiroAtual:state.barbeiroAtual, metas:state.metas,
+      nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
+      chavePixTipo:state.chavePixTipo, plano:state.plano
+    });
+  }catch(e){ console.warn('saveConfig offline:',e.message||e); }
   setSyncing(false);
 }
 
@@ -713,21 +739,25 @@ function getPagConfig(){
   };
 }
 async function saveRegistro(reg){
-  if(!state.uid)return;setSyncing(true);
+  if(!state.uid)return;
+  // Salva local imediatamente
+  salvarLocalUsuario(state.uid);
+  // Depois sobe pro Firestore
+  setSyncing(true);
   try{
     const ref=await addDoc(collection(db,'users',state.uid,'registros'),{...reg,createdAt:Date.now()});
     const i=state.registros.findIndex(r=>r._tempId===reg._tempId);
     if(i>=0) state.registros[i].id=ref.id;
-    salvarCacheRegistros(state.uid,state.registros);
-  }catch(e){console.error(e);}
+    // Atualiza local com o id real do Firestore
+    salvarLocalUsuario(state.uid);
+  }catch(e){ console.warn('saveRegistro offline:',e.message||e); }
   setSyncing(false);
 }
 async function deleteRegistro(id){
-  if(!state.uid)return;setSyncing(true);
-  try{
-    await deleteDoc(doc(db,'users',state.uid,'registros',id));
-    salvarCacheRegistros(state.uid,state.registros);
-  }catch(e){console.error(e);}
+  if(!state.uid)return;
+  setSyncing(true);
+  try{ await deleteDoc(doc(db,'users',state.uid,'registros',id)); }
+  catch(e){ console.warn('deleteRegistro offline:',e.message||e); }
   setSyncing(false);
 }
 function setSyncing(v){const dot=document.getElementById('sync-dot');if(dot)dot.className='sync-dot'+(v?' syncing':'');}
@@ -1425,6 +1455,45 @@ function exportarPDF(filtrados,total,gorjTotal){
   showFeedback('PDF gerado! Salve como PDF ao imprimir.','ok');
 }
 
+// ── SINCRONIZAR COM NUVEM ─────────────────────────────────────────────────────
+window.sincronizarNuvem = async function(){
+  if(!state.uid){ showFeedback('Faça login primeiro.','erro'); return; }
+  setSyncing(true);
+  showFeedback('Sincronizando...','ok');
+  try{
+    // Sobe config
+    await setDoc(doc(db,'users',state.uid,'config','main'),{
+      cortesLista:state.cortesLista, barbeiros:state.barbeiros,
+      barbeiroAtual:state.barbeiroAtual, metas:state.metas,
+      nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
+      chavePixTipo:state.chavePixTipo, plano:state.plano
+    });
+    // Sobe registros que ainda têm _tempId (não chegaram ao Firestore)
+    const pendentes = state.registros.filter(r => r.id && r.id.startsWith('t'));
+    for(const reg of pendentes){
+      try{
+        const ref = await addDoc(collection(db,'users',state.uid,'registros'),{
+          ...reg, createdAt: reg.createdAt || Date.now()
+        });
+        reg.id = ref.id;
+      }catch(err){ console.warn('sync reg erro:',err); }
+    }
+    // Busca tudo da nuvem para garantir consistência
+    const snap = await getDocs(query(collection(db,'users',state.uid,'registros'),orderBy('createdAt','desc')));
+    if(snap.docs.length > 0){
+      state.registros = snap.docs.map(d=>({id:d.id,...d.data()}));
+    }
+    salvarLocalUsuario(state.uid);
+    setSyncing(false);
+    showFeedback('✓ Sincronizado com a nuvem!','ok');
+    render();
+  }catch(e){
+    setSyncing(false);
+    console.error('sincronizarNuvem:',e);
+    showFeedback('Erro ao sincronizar. Verifique sua conexão.','erro');
+  }
+};
+
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 function renderConfig(){
   const frag=document.createDocumentFragment();
@@ -1453,6 +1522,7 @@ function renderConfig(){
      }
      openModal('modalPix');
    }},
+   {icon:'☁',label:'Sincronizar com a nuvem',sub:'Salva todos os dados no Firebase agora',fn:()=>sincronizarNuvem()},
    {icon:'🗑',label:'Limpar todos os dados',sub:'Remove todos os registros permanentemente',fn:()=>confirmarLimpar(),danger:true},
   ].forEach(item=>{
     const row=div('corte-item');row.style.cursor='pointer';
@@ -1747,7 +1817,16 @@ window.confirmarExcluir=function(id){
 };
 function confirmarLimpar(){
   document.getElementById('confirm-title-text').textContent='Limpar todos os dados?';
-  document.getElementById('btn-confirm-del').onclick=async()=>{const ids=state.registros.map(r=>r.id);state.registros=[];closeModal('overlayConfirm');showFeedback('Dados apagados.','ok');render();for(const id of ids)await deleteRegistro(id);};
+  document.getElementById('btn-confirm-del').onclick=async()=>{
+    const ids=state.registros.map(r=>r.id);
+    state.registros=[];
+    // Limpa local E nuvem
+    limparLocalUsuario(state.uid);
+    closeModal('overlayConfirm');
+    showFeedback('Dados apagados.','ok');
+    render();
+    for(const id of ids) await deleteRegistro(id);
+  };
   openModal('overlayConfirm');
 }
 
