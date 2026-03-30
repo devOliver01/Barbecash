@@ -1350,21 +1350,63 @@ window.salvarChavePix=function(){
 // ── PIX PAYLOAD (EMV/BACEN spec) — suporta CPF, CNPJ, email, telefone, chave aleatória ──
 function gerarPixPayload(chave, valor, nomeBarbeiro){
   chave=(chave||'').trim();
-  // Limpa nome para payload (máx 25 chars, apenas alfanumérico e espaço)
-  const nome=(nomeBarbeiro||state.nomeUsuario||'Barbeiro').replace(/[^a-zA-Z0-9 ]/g,'').substring(0,25)||'Barbeiro';
-  const cidade='Brasil'.substring(0,15);
-  function lv(id,val){const l=String(val.length).padStart(2,'0');return id+l+val;}
-  // Merchant Account Info — GUI padrão BACEN PIX
+  // Normaliza a chave: remove espaços extras
+  // Para telefone: garante formato +55XXXXXXXXXXX
+  if(/^\+?[0-9]{10,13}$/.test(chave.replace(/[\s\-\(\)]/g,''))){
+    const tel=chave.replace(/[\s\-\(\)]/g,'').replace(/^0/,'');
+    if(!tel.startsWith('+')) chave='+55'+tel.replace(/^55/,'');
+    else chave=tel;
+  }
+  // Para CPF: remove pontos e traço
+  if(/^\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\s]?\d{2}$/.test(chave)){
+    chave=chave.replace(/[\.\-\s]/g,'');
+  }
+  // Para CNPJ: remove pontuação
+  if(/^\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\/\s]?\d{4}[\-\s]?\d{2}$/.test(chave)){
+    chave=chave.replace(/[\.\-\/\s]/g,'');
+  }
+
+  // Limpa nome: remove acentos e caracteres especiais (BACEN exige ASCII)
+  const nomeRaw=(nomeBarbeiro||state.nomeUsuario||'Barbeiro');
+  const nomeAscii=nomeRaw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]/g,'').trim();
+  const nome=(nomeAscii||'Barbeiro').substring(0,25);
+  const cidade='SAO PAULO'.substring(0,15);
+
+  function lv(id,val){
+    const s=String(val);
+    const l=String(s.length).padStart(2,'0');
+    return id+l+s;
+  }
+
+  // Merchant Account Info — GUI padrão BACEN PIX (ID 26)
   const merchantAccInfo=lv('00','BR.GOV.BCB.PIX')+lv('01',chave);
+
+  // Additional Data Field (ID 62) — txid obrigatório, usar '***' para dinâmico aberto
+  const additionalData=lv('05','***');
+
   // Monta payload sem CRC
-  let parts=['000201',lv('26',merchantAccInfo),'52040000','5303986','5802BR',lv('59',nome),lv('60',cidade)];
-  if(valor&&valor>0){const vStr=valor.toFixed(2);parts.push(lv('54',vStr));}
-  parts.push(lv('62',lv('05','***')));
-  parts.push('6304');
+  const parts=[
+    '000201',                    // Payload Format Indicator
+    lv('26',merchantAccInfo),    // Merchant Account Information
+    '52040000',                  // Merchant Category Code (0000 = não especificado)
+    '5303986',                   // Transaction Currency (986 = BRL)
+  ];
+  if(valor&&valor>0){parts.push(lv('54',valor.toFixed(2)));}  // Transaction Amount
+  parts.push('5802BR');          // Country Code
+  parts.push(lv('59',nome));     // Merchant Name
+  parts.push(lv('60',cidade));   // Merchant City
+  parts.push(lv('62',additionalData)); // Additional Data Field
+  parts.push('6304');            // CRC placeholder
+
   const body=parts.join('');
-  // CRC-16/CCITT-FALSE
+
+  // CRC-16/CCITT-FALSE (polinômio 0x1021, init 0xFFFF)
   let crc=0xFFFF;
-  for(let i=0;i<body.length;i++){crc^=body.charCodeAt(i)<<8;for(let j=0;j<8;j++)crc=crc&0x8000?(crc<<1)^0x1021:(crc<<1);crc&=0xFFFF;}
+  for(let i=0;i<body.length;i++){
+    crc^=body.charCodeAt(i)<<8;
+    for(let j=0;j<8;j++) crc=(crc&0x8000)?(crc<<1)^0x1021:(crc<<1);
+    crc&=0xFFFF;
+  }
   return body+crc.toString(16).toUpperCase().padStart(4,'0');
 }
 
