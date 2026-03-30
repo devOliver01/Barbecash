@@ -394,8 +394,21 @@ textarea.input{resize:none;height:70px;font-size:14px}
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Chave PIX</div><button class="modal-close" onclick="closeModal('modalPix')">✕</button></div>
     <div class="modal-body">
-      <div class="field"><label>Sua chave PIX</label><input class="input" id="pix-key-input" placeholder="CPF, e-mail, telefone ou chave aleatória"/></div>
-      <div style="font-size:12px;color:var(--muted);margin-top:-8px">O QR Code será gerado automaticamente ao escolher PIX como pagamento.</div>
+      <div class="field">
+        <label>Tipo de chave</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="pix-tipo-tabs">
+          <button class="pag-tab" data-tipo="celular" onclick="selecionarTipoPix('celular',this)">📱 Celular</button>
+          <button class="pag-tab" data-tipo="email" onclick="selecionarTipoPix('email',this)">✉ E-mail</button>
+          <button class="pag-tab" data-tipo="cpf" onclick="selecionarTipoPix('cpf',this)">🪪 CPF</button>
+          <button class="pag-tab" data-tipo="aleatoria" onclick="selecionarTipoPix('aleatoria',this)">🔑 Aleatória</button>
+        </div>
+      </div>
+      <div class="field">
+        <label id="pix-key-label">Sua chave PIX</label>
+        <input class="input" id="pix-key-input" placeholder="Selecione o tipo acima" inputmode="text"/>
+        <div id="pix-key-hint" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+        <div id="pix-key-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none"></div>
+      </div>
     </div>
     <div class="modal-footer"><button class="btn-primary" onclick="salvarChavePix()">Salvar Chave PIX</button></div>
   </div>
@@ -563,7 +576,7 @@ function limparRascunho(){
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state={
-  uid:null,nomeUsuario:'Barbeiro',registros:[],chavePix:'',
+  uid:null,nomeUsuario:'Barbeiro',registros:[],chavePix:'',chavePixTipo:'',
   plano:{tipo:'trial',inicio:null,premium:false},
   vagas:[],
   agendamentos:[],
@@ -592,7 +605,7 @@ async function loadUserData(uid){
   setSyncing(true);
   try{
     const cfgDoc=await getDoc(doc(db,'users',uid,'config','main'));
-    if(cfgDoc.exists()){const d=cfgDoc.data();if(d.cortesLista)state.cortesLista=d.cortesLista;if(d.barbeiros)state.barbeiros=d.barbeiros;if(d.barbeiroAtual)state.barbeiroAtual=d.barbeiroAtual;if(d.metas)state.metas=d.metas;if(d.nomeUsuario)state.nomeUsuario=d.nomeUsuario;if(d.chavePix)state.chavePix=d.chavePix;if(d.plano)state.plano=d.plano;}
+    if(cfgDoc.exists()){const d=cfgDoc.data();if(d.cortesLista)state.cortesLista=d.cortesLista;if(d.barbeiros)state.barbeiros=d.barbeiros;if(d.barbeiroAtual)state.barbeiroAtual=d.barbeiroAtual;if(d.metas)state.metas=d.metas;if(d.nomeUsuario)state.nomeUsuario=d.nomeUsuario;if(d.chavePix)state.chavePix=d.chavePix;if(d.chavePixTipo)state.chavePixTipo=d.chavePixTipo;if(d.plano)state.plano=d.plano;}
     const snap=await getDocs(query(collection(db,'users',uid,'registros'),orderBy('createdAt','desc')));
     state.registros=snap.docs.map(d=>({id:d.id,...d.data()}));
   }catch(e){console.error(e);}
@@ -600,7 +613,7 @@ async function loadUserData(uid){
 }
 async function saveConfig(){
   if(!state.uid)return;setSyncing(true);
-  try{await setDoc(doc(db,'users',state.uid,'config','main'),{cortesLista:state.cortesLista,barbeiros:state.barbeiros,barbeiroAtual:state.barbeiroAtual,metas:state.metas,nomeUsuario:state.nomeUsuario,chavePix:state.chavePix,plano:state.plano});}
+  try{await setDoc(doc(db,'users',state.uid,'config','main'),{cortesLista:state.cortesLista,barbeiros:state.barbeiros,barbeiroAtual:state.barbeiroAtual,metas:state.metas,nomeUsuario:state.nomeUsuario,chavePix:state.chavePix,chavePixTipo:state.chavePixTipo,plano:state.plano});}
   catch(e){console.error(e);}setSyncing(false);
 }
 
@@ -1029,6 +1042,7 @@ function resetState(){
   state.nomeUsuario='Barbeiro';
   state.registros=[];
   state.chavePix='';
+  state.chavePixTipo='';
   state.plano={tipo:'trial',inicio:null,premium:false};
   state.vagas=[];
   state.agendamentos=[];
@@ -1364,7 +1378,26 @@ function renderConfig(){
    {icon:'✂',label:'Gerenciar Serviços',sub:'Editar cortes e preços padrão',fn:()=>{renderModalCortes();openModal('modalCortes');}},
    {icon:'🎯',label:'Metas de Faturamento',sub:'Defina metas diária, semanal e mensal',fn:()=>{abrirModalMeta();openModal('modalMeta');}},
    {icon:'👥',label:'Barbeiros',sub:'Gerenciar perfis de barbeiro',fn:()=>{renderModalBarbeiros();openModal('modalBarbeiros');}},
-   {icon:'◈',label:'Chave PIX',sub:state.chavePix?`Chave: ${state.chavePix}`:'Cadastrar chave para receber via PIX',fn:()=>{document.getElementById('pix-key-input').value=state.chavePix||'';openModal('modalPix');}},
+   {icon:'◈',label:'Chave PIX',sub:state.chavePix?`Chave: ${state.chavePix}${state.chavePixTipo?' ('+({celular:'Celular',email:'E-mail',cpf:'CPF',aleatoria:'Aleatória'}[state.chavePixTipo]||state.chavePixTipo)+')':''}`:'Cadastrar chave para receber via PIX',fn:()=>{
+     // Abre modal e pré-seleciona o tipo atual
+     document.getElementById('pix-key-input').value=state.chavePix||'';
+     document.getElementById('pix-key-error').style.display='none';
+     _pixTipoAtual = state.chavePixTipo||'';
+     document.querySelectorAll('#pix-tipo-tabs .pag-tab').forEach(b=>{
+       const ativo = b.getAttribute('data-tipo')===_pixTipoAtual;
+       b.classList.toggle('active',ativo);
+     });
+     if(state.chavePixTipo){
+       const hints={celular:'Ex: 11999998888 (somente números, com DDD)',email:'Ex: seuemail@gmail.com',cpf:'Ex: 123.456.789-00',aleatoria:'Cole aqui a chave aleatória gerada pelo seu banco'};
+       const labels={celular:'Número de celular (com DDD)',email:'E-mail',cpf:'CPF',aleatoria:'Chave aleatória'};
+       const el=document.getElementById('pix-key-label');if(el)el.textContent=labels[state.chavePixTipo]||'Sua chave PIX';
+       const h=document.getElementById('pix-key-hint');if(h)h.textContent=hints[state.chavePixTipo]||'';
+     } else {
+       const el=document.getElementById('pix-key-label');if(el)el.textContent='Sua chave PIX';
+       const h=document.getElementById('pix-key-hint');if(h)h.textContent='';
+     }
+     openModal('modalPix');
+   }},
    {icon:'🗑',label:'Limpar todos os dados',sub:'Remove todos os registros permanentemente',fn:()=>confirmarLimpar(),danger:true},
   ].forEach(item=>{
     const row=div('corte-item');row.style.cursor='pointer';
@@ -1402,10 +1435,83 @@ function renderConfig(){
 }
 
 // ── CHAVE PIX ────────────────────────────────────────────────────────────────
+let _pixTipoAtual = '';
+
+window.selecionarTipoPix = function(tipo, btn){
+  _pixTipoAtual = tipo;
+  document.querySelectorAll('#pix-tipo-tabs .pag-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const inp = document.getElementById('pix-key-input');
+  const label = document.getElementById('pix-key-label');
+  const hint = document.getElementById('pix-key-hint');
+  const errEl = document.getElementById('pix-key-error');
+  if(errEl) errEl.style.display='none';
+  const hints = {
+    celular:'Ex: 11999998888 (somente números, com DDD)',
+    email:'Ex: seuemail@gmail.com',
+    cpf:'Ex: 123.456.789-00 (somente números também aceito)',
+    aleatoria:'Cole aqui a chave aleatória gerada pelo seu banco',
+  };
+  const labels = {celular:'Número de celular (com DDD)',email:'E-mail',cpf:'CPF',aleatoria:'Chave aleatória'};
+  const inputmodes = {celular:'numeric',email:'email',cpf:'numeric',aleatoria:'text'};
+  if(label) label.textContent = labels[tipo]||'Sua chave PIX';
+  if(hint) hint.textContent = hints[tipo]||'';
+  if(inp){
+    inp.placeholder = hints[tipo]||'';
+    inp.inputMode = inputmodes[tipo]||'text';
+    inp.value = '';
+    inp.focus();
+  }
+};
+
 window.salvarChavePix=function(){
   const chave=document.getElementById('pix-key-input').value.trim();
-  state.chavePix=chave;saveConfig();
-  showFeedback(chave?'Chave PIX salva! ✓':'Chave PIX removida.','ok');
+  const errEl=document.getElementById('pix-key-error');
+  if(errEl) errEl.style.display='none';
+
+  if(!_pixTipoAtual){
+    if(errEl){errEl.textContent='Selecione o tipo de chave PIX.';errEl.style.display='block';}
+    return;
+  }
+  if(!chave){
+    if(errEl){errEl.textContent='Digite sua chave PIX.';errEl.style.display='block';}
+    return;
+  }
+
+  // Validação por tipo
+  let chaveNorm = chave;
+  if(_pixTipoAtual==='celular'){
+    const nums = chave.replace(/\D/g,'');
+    if(nums.length < 10 || nums.length > 13){
+      if(errEl){errEl.textContent='Celular inválido. Use DDD + número (ex: 11999998888).';errEl.style.display='block';}
+      return;
+    }
+    chaveNorm = nums;
+  } else if(_pixTipoAtual==='email'){
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(chave)){
+      if(errEl){errEl.textContent='E-mail inválido.';errEl.style.display='block';}
+      return;
+    }
+    chaveNorm = chave.toLowerCase();
+  } else if(_pixTipoAtual==='cpf'){
+    const nums = chave.replace(/\D/g,'');
+    if(nums.length !== 11){
+      if(errEl){errEl.textContent='CPF inválido. Deve ter 11 dígitos.';errEl.style.display='block';}
+      return;
+    }
+    chaveNorm = nums;
+  } else if(_pixTipoAtual==='aleatoria'){
+    if(chave.length < 10){
+      if(errEl){errEl.textContent='Chave aleatória parece muito curta.';errEl.style.display='block';}
+      return;
+    }
+    chaveNorm = chave;
+  }
+
+  state.chavePix=chaveNorm;
+  state.chavePixTipo=_pixTipoAtual;
+  saveConfig();
+  showFeedback(chaveNorm?'Chave PIX salva! ✓':'Chave PIX removida.','ok');
   closeModal('modalPix');render();
 };
 
@@ -1414,20 +1520,29 @@ window.salvarChavePix=function(){
 // ── PIX PAYLOAD (EMV/BACEN spec) — suporta CPF, CNPJ, email, telefone, chave aleatória ──
 function gerarPixPayload(chave, valor, nomeBarbeiro){
   chave=(chave||'').trim();
-  // Normaliza a chave: remove espaços extras
-  // Para telefone: garante formato +55XXXXXXXXXXX
-  if(/^\+?[0-9]{10,13}$/.test(chave.replace(/[\s\-\(\)]/g,''))){
-    const tel=chave.replace(/[\s\-\(\)]/g,'').replace(/^0/,'');
-    if(!tel.startsWith('+')) chave='+55'+tel.replace(/^55/,'');
-    else chave=tel;
-  }
-  // Para CPF: remove pontos e traço
-  if(/^\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\s]?\d{2}$/.test(chave)){
-    chave=chave.replace(/[\.\-\s]/g,'');
-  }
-  // Para CNPJ: remove pontuação
-  if(/^\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\/\s]?\d{4}[\-\s]?\d{2}$/.test(chave)){
-    chave=chave.replace(/[\.\-\/\s]/g,'');
+  const tipo = state.chavePixTipo || '';
+
+  // Normaliza conforme o tipo salvo pelo usuário
+  if(tipo==='celular'){
+    const nums = chave.replace(/\D/g,'');
+    // Garante formato +55XXXXXXXXXXX
+    if(!chave.startsWith('+')) chave = '+55' + nums.replace(/^55/,'');
+    else chave = '+' + nums;
+  } else if(tipo==='cpf'){
+    chave = chave.replace(/\D/g,'');
+  } else if(tipo==='email'){
+    chave = chave.toLowerCase();
+  } else {
+    // Fallback: tenta detectar automaticamente (compatibilidade com dados antigos)
+    if(/^\+?[0-9]{10,13}$/.test(chave.replace(/[\s\-\(\)]/g,''))){
+      const tel=chave.replace(/[\s\-\(\)]/g,'').replace(/^0/,'');
+      if(!tel.startsWith('+')) chave='+55'+tel.replace(/^55/,'');
+      else chave=tel;
+    } else if(/^\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\s]?\d{2}$/.test(chave)){
+      chave=chave.replace(/[\.\-\s]/g,'');
+    } else if(/^\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\/\s]?\d{4}[\-\s]?\d{2}$/.test(chave)){
+      chave=chave.replace(/[\.\-\/\s]/g,'');
+    }
   }
 
   // Limpa nome: remove acentos e caracteres especiais (BACEN exige ASCII)
