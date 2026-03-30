@@ -5,7 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BarberCash</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" onerror="loadQrFallback()"></script>
+<script>
+function loadQrFallback(){
+  // Fallback: carrega de CDN alternativo
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  s.onerror=function(){
+    // Segundo fallback: unpkg
+    var s2=document.createElement('script');
+    s2.src='https://unpkg.com/qrcode-generator@1.4.4/qrcode.js';
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -1159,17 +1173,7 @@ function renderHistorico(){
 // ── RELATÓRIO ─────────────────────────────────────────────────────────────────
 function renderRelatorio(){
   const frag=document.createDocumentFragment();
-  // Bloqueia relatório para não-premium
-  if(!isPremium()){
-    const bloq=div('card');
-    bloq.innerHTML=`<div style="text-align:center;padding:32px 16px">
-      <div style="font-size:48px;margin-bottom:16px">📊</div>
-      <div class="upgrade-banner-title" style="font-size:17px;margin-bottom:8px">✦ Relatórios são exclusivos do Premium</div>
-      <div class="upgrade-banner-sub" style="margin-bottom:16px">Assine para acessar gráficos, métricas e exportar PDF.</div>
-      <button class="btn-upgrade" onclick="abrirUpgrade()">Assinar Premium</button>
-    </div>`;
-    frag.appendChild(bloq);return frag;
-  }
+  // Relatório liberado para todos os usuários
   const filtrados=filtrar(state.registros,state.periodo,state.barbeiroAtual);
   const total=filtrados.reduce((s,r)=>s+r.valor,0);const gorjTotal=filtrados.reduce((s,r)=>s+(r.gorjeta||0),0);
   const topCard=div('card');topCard.appendChild(renderPeriodoRow());
