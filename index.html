@@ -531,6 +531,34 @@ const PAG_COLORS={pix:'#5b9cf6',dinheiro:'#4caf78',cartao:'#c97de8'};
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
 const periodoLabel={hoje:'Hoje',semana:'Esta Semana',mes:'Este Mês',tudo:'Todo o Período'};
 
+// ── RASCUNHO POR USUÁRIO (localStorage) ──────────────────────────────────────
+function salvarRascunho(){
+  if(!state.uid) return;
+  LS.set('bc_rascunho_'+state.uid,{
+    corteNome:state.corteNome,
+    precoRaw:state.precoRaw,
+    gorjetaRaw:state.gorjetaRaw,
+    gorjetaOn:state.gorjetaOn,
+    pagamento:state.pagamento,
+    obs:state.obs,
+  });
+}
+function carregarRascunho(){
+  if(!state.uid) return;
+  const r=LS.get('bc_rascunho_'+state.uid,null);
+  if(!r) return;
+  if(r.corteNome!==undefined) state.corteNome=r.corteNome;
+  if(r.precoRaw!==undefined) state.precoRaw=r.precoRaw;
+  if(r.gorjetaRaw!==undefined) state.gorjetaRaw=r.gorjetaRaw;
+  if(r.gorjetaOn!==undefined) state.gorjetaOn=r.gorjetaOn;
+  if(r.pagamento!==undefined) state.pagamento=r.pagamento;
+  if(r.obs!==undefined) state.obs=r.obs;
+}
+function limparRascunho(){
+  if(!state.uid) return;
+  localStorage.removeItem('bc_rascunho_'+state.uid);
+}
+
 
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
@@ -1048,6 +1076,7 @@ onAuthStateChanged(auth,async user=>{
     state.uid=user.uid;
     renderLoading();
     await Promise.all([loadUserData(user.uid), loadAdminConfig()]);
+    carregarRascunho();
     if(!state.corteNome) state.pagamento=getPagConfig().padrao;
     iniciarListenerAgendamentos();
     renderApp();
@@ -1084,7 +1113,7 @@ function renderRegistrar(){
   const fieldCorte=div('field');fieldCorte.innerHTML=`<label>Serviço *</label>`;
   const inputWrap=div('input-wrap');
   const inp=document.createElement('input');inp.className='input';inp.placeholder='Ex: Degradê, Barba...';inp.value=state.corteNome;
-  inp.oninput=e=>{state.corteNome=e.target.value;renderDropdown(e.target.value,drop,inp);};
+  inp.oninput=e=>{state.corteNome=e.target.value;renderDropdown(e.target.value,drop,inp);salvarRascunho();};
   inp.onblur=()=>setTimeout(()=>drop.classList.remove('show'),150);inp.onfocus=()=>renderDropdown(inp.value,drop,inp);
   const drop=div('dropdown');inputWrap.appendChild(inp);inputWrap.appendChild(drop);fieldCorte.appendChild(inputWrap);
   const chipsSection=div('chips-section');const chipsHeader=div('chips-header');
@@ -1116,18 +1145,18 @@ function renderRegistrar(){
   const listaFiltrada=state._chipCat==='todos'?state.cortesLista:state.cortesLista.filter(c=>categorizar(c.nome)===state._chipCat);
   listaFiltrada.forEach(c=>{
     const ch=document.createElement('span');ch.className='chip';ch.textContent=c.nome;
-    ch.onclick=()=>{state.corteNome=c.nome;inp.value=c.nome;if(c.preco){state.precoRaw=String(Math.round(c.preco*100));updatePrecoInput();}drop.classList.remove('show');};chipsDiv.appendChild(ch);
+    ch.onclick=()=>{state.corteNome=c.nome;inp.value=c.nome;if(c.preco){state.precoRaw=String(Math.round(c.preco*100));updatePrecoInput();}drop.classList.remove('show');salvarRascunho();};chipsDiv.appendChild(ch);
   });
   chipsSection.appendChild(chipsHeader);chipsSection.appendChild(chipsDiv);fieldCorte.appendChild(chipsSection);card.appendChild(fieldCorte);
   const fieldVal=div('field');fieldVal.innerHTML=`<label>Valor do Serviço *</label>`;
   const inpVal=document.createElement('input');inpVal.className='input input-valor';inpVal.placeholder='0,00';inpVal.inputMode='numeric';inpVal.value=fmtValorInput(state.precoRaw);inpVal.id='inp-preco';
-  inpVal.oninput=e=>{state.precoRaw=e.target.value.replace(/\D/g,'');e.target.value=fmtValorInput(state.precoRaw);};fieldVal.appendChild(inpVal);card.appendChild(fieldVal);
+  inpVal.oninput=e=>{state.precoRaw=e.target.value.replace(/\D/g,'');e.target.value=fmtValorInput(state.precoRaw);salvarRascunho();};fieldVal.appendChild(inpVal);card.appendChild(fieldVal);
   const fieldGorj=div('field');fieldGorj.innerHTML=`<label>Gorjeta</label>`;
   const gorjRow=div('gorjeta-row');const togLabel=document.createElement('label');togLabel.className='gorjeta-toggle';
   const togBox=div('toggle-box'+(state.gorjetaOn?' on':''));const knob=div('toggle-knob');togBox.appendChild(knob);togLabel.appendChild(togBox);togLabel.append(' Incluir');
-  togLabel.onclick=()=>{state.gorjetaOn=!state.gorjetaOn;togBox.className='toggle-box'+(state.gorjetaOn?' on':'');inpGorj.style.display=state.gorjetaOn?'':'none';};
+  togLabel.onclick=()=>{state.gorjetaOn=!state.gorjetaOn;togBox.className='toggle-box'+(state.gorjetaOn?' on':'');inpGorj.style.display=state.gorjetaOn?'':'none';salvarRascunho();};
   const inpGorj=document.createElement('input');inpGorj.className='input';inpGorj.placeholder='Valor...';inpGorj.inputMode='numeric';inpGorj.style.display=state.gorjetaOn?'':'none';inpGorj.value=fmtValorInput(state.gorjetaRaw);
-  inpGorj.oninput=e=>{state.gorjetaRaw=e.target.value.replace(/\D/g,'');e.target.value=fmtValorInput(state.gorjetaRaw);};gorjRow.appendChild(togLabel);gorjRow.appendChild(inpGorj);fieldGorj.appendChild(gorjRow);card.appendChild(fieldGorj);
+  inpGorj.oninput=e=>{state.gorjetaRaw=e.target.value.replace(/\D/g,'');e.target.value=fmtValorInput(state.gorjetaRaw);salvarRascunho();};gorjRow.appendChild(togLabel);gorjRow.appendChild(inpGorj);fieldGorj.appendChild(gorjRow);card.appendChild(fieldGorj);
   const fieldPag=div('field');fieldPag.innerHTML=`<label>Forma de Pagamento</label>`;
   const pagTabs=div('pag-tabs');
   const pagCfg=getPagConfig();
@@ -1139,7 +1168,7 @@ function renderRegistrar(){
   if(!pagsDisponiveis.find(p=>p[0]===state.pagamento)) state.pagamento=pagCfg.padrao;
   pagsDisponiveis.forEach(([k,l])=>{
     const btn=document.createElement('button');btn.className='pag-tab'+(state.pagamento===k?' active':'');btn.textContent=l;
-    btn.onclick=()=>{state.pagamento=k;pagTabs.querySelectorAll('.pag-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderQrPix();};pagTabs.appendChild(btn);
+    btn.onclick=()=>{state.pagamento=k;pagTabs.querySelectorAll('.pag-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderQrPix();salvarRascunho();};pagTabs.appendChild(btn);
   });
   fieldPag.appendChild(pagTabs);
 
@@ -1151,7 +1180,7 @@ function renderRegistrar(){
 
   setTimeout(()=>renderQrPix(),0);
   const fieldObs=div('field');fieldObs.innerHTML=`<label>Observação (opcional)</label>`;
-  const inpObs=document.createElement('textarea');inpObs.className='input';inpObs.placeholder='Ex: cliente VIP, desconto amigo...';inpObs.rows=2;inpObs.value=state.obs;inpObs.oninput=e=>state.obs=e.target.value;fieldObs.appendChild(inpObs);card.appendChild(fieldObs);
+  const inpObs=document.createElement('textarea');inpObs.className='input';inpObs.placeholder='Ex: cliente VIP, desconto amigo...';inpObs.rows=2;inpObs.value=state.obs;inpObs.oninput=e=>{state.obs=e.target.value;salvarRascunho();};fieldObs.appendChild(inpObs);card.appendChild(fieldObs);
   const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='✂ Registrar Atendimento';
   if(!isPremium()){
     const qtdHoje=registrosHojeCount();
@@ -1171,7 +1200,7 @@ function renderRegistrar(){
 }
 
 function updatePrecoInput(){const el=document.getElementById('inp-preco');if(el)el.value=fmtValorInput(state.precoRaw);}
-function renderDropdown(q,drop,inp){if(!q){drop.classList.remove('show');return;}const matches=state.cortesLista.filter(c=>c.nome.toLowerCase().includes(q.toLowerCase()));if(!matches.length){drop.classList.remove('show');return;}drop.innerHTML='';matches.forEach(c=>{const item=div('drop-item');item.innerHTML=`${c.nome} <span style="color:var(--gold);font-size:12px">${c.preco?brl(c.preco):''}</span>`;item.onmousedown=()=>{state.corteNome=c.nome;inp.value=c.nome;if(c.preco){state.precoRaw=String(Math.round(c.preco*100));updatePrecoInput();}drop.classList.remove('show');};drop.appendChild(item);});drop.classList.add('show');}
+function renderDropdown(q,drop,inp){if(!q){drop.classList.remove('show');return;}const matches=state.cortesLista.filter(c=>c.nome.toLowerCase().includes(q.toLowerCase()));if(!matches.length){drop.classList.remove('show');return;}drop.innerHTML='';matches.forEach(c=>{const item=div('drop-item');item.innerHTML=`${c.nome} <span style="color:var(--gold);font-size:12px">${c.preco?brl(c.preco):''}</span>`;item.onmousedown=()=>{state.corteNome=c.nome;inp.value=c.nome;if(c.preco){state.precoRaw=String(Math.round(c.preco*100));updatePrecoInput();}drop.classList.remove('show');salvarRascunho();};drop.appendChild(item);});drop.classList.add('show');}
 
 async function registrar(){
   if(!state.corteNome.trim()){showFeedback('Informe o serviço!','erro');return;}
@@ -1181,7 +1210,7 @@ async function registrar(){
   const gorj=state.gorjetaOn?rawToNum(state.gorjetaRaw):0;
   const tempId='t'+Date.now();
   const novoReg={_tempId:tempId,id:tempId,corte:state.corteNome.trim(),valor:val,gorjeta:gorj,pagamento:state.pagamento,obs:state.obs.trim(),data:today(),hora:hora(),barbeiro:state.barbeiroAtual};
-  state.registros.unshift(novoReg);state.corteNome='';state.precoRaw='';state.gorjetaRaw='';state.gorjetaOn=false;state.obs='';
+  state.registros.unshift(novoReg);state.corteNome='';state.precoRaw='';state.gorjetaRaw='';state.gorjetaOn=false;state.obs='';limparRascunho();
   showFeedback('Atendimento registrado! ✂','ok');render();await saveRegistro(novoReg);
 }
 
