@@ -39,7 +39,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .login-success{font-size:12px;color:var(--green);text-align:center;padding:8px;background:rgba(76,175,120,.1);border-radius:8px}
 .login-divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
 .login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--border)}
-.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 18px 0;flex-shrink:0}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 18px;flex-shrink:0}
 .logo-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .logo{display:flex;align-items:center;gap:10px}
 .logo-icon{width:36px;height:36px;background:var(--gold);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
@@ -47,11 +47,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .logo-sub{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
 .user-badge{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px}
 .user-badge span{color:var(--gold);font-weight:500}
-.nav{display:flex}
-.nav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;border-bottom:2px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:2px}
-.nav-btn .nav-icon{font-size:16px}
-.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
-.body{flex:1;overflow-y:auto;padding:16px;padding-bottom:16px}
+.nav{display:flex;background:var(--surface);border-top:1px solid var(--border);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;font-family:'DM Sans',sans-serif;border-top:2px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav-btn .nav-icon{font-size:18px}
+.nav-btn.active{color:var(--gold);border-top-color:var(--gold)}
+.body{flex:1;overflow-y:auto;padding:16px;padding-bottom:80px}
 .body::-webkit-scrollbar{display:none}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
 .card-title{font-family:'Playfair Display',serif;font-size:13px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px}
@@ -362,6 +362,9 @@ textarea.input{resize:none;height:70px;font-size:14px}
         <div class="plano-feature"><span class="feat-ok">✓</span>Metas de faturamento</div>
         <div class="plano-feature"><span class="feat-ok">✓</span>QR Code PIX automático</div>
         <div class="plano-feature"><span class="feat-ok">✓</span>Histórico completo</div>
+        <div class="plano-feature"><span class="feat-ok">✓</span>Agendamento online</div>
+        <div class="plano-feature"><span class="feat-ok">✓</span>Pix automático no agendamento</div>
+        <div class="plano-feature"><span class="feat-ok">✓</span>Mensagens WhatsApp automáticas</div>
         <div class="plano-feature"><span class="feat-ok">✓</span>Suporte prioritário</div>
       </div>
 
@@ -699,6 +702,14 @@ window.tentarFecharUpgrade=function(){
   closeModal('modalUpgrade');
 };
 
+window.copiarPixBarbeiro=function(){
+  const chave=(state.chavePix||'').trim();
+  if(!chave){showFeedback('Nenhuma chave PIX cadastrada.','erro');return;}
+  navigator.clipboard.writeText(chave)
+    .then(()=>showFeedback('Chave PIX copiada!','ok'))
+    .catch(()=>showFeedback('Chave: '+chave,'ok'));
+};
+
 window.copiarChavePix=function(){
   const chave=(state.adminCfg.pixAdmin||'').trim();
   if(!chave) return;
@@ -794,7 +805,7 @@ function renderModalUpgrade(){
   qrContainer.innerHTML='';
   if(qrChave) qrChave.textContent=pixAdmin;
 
-  const pixPayload=gerarPixPayload(pixAdmin);
+  const pixPayload=gerarPixPayload(pixAdmin,0,state.nomeUsuario);
   setTimeout(()=>{
     try{gerarQR(qrContainer,pixPayload,180);}
     catch(e){qrContainer.innerHTML=`<div style="padding:16px;font-size:12px;color:#333;text-align:center">${pixAdmin}</div>`;}
@@ -930,21 +941,19 @@ function renderApp(){
                   </div>
                   <div class="toggle-box${LS.get('bc_auto_login',true)?' on':''}" id="auto-login-tog" style="cursor:pointer;flex-shrink:0" onclick="toggleAutoLogin()"><div class="toggle-knob"></div></div>
                 </div>
-                <button onclick="fazerLogout()" style="width:100%;padding:10px;background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.3);border-radius:10px;color:var(--red);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🚪 Sair da conta</button>
+                <button onclick="fazerLogout()" style="width:100%;padding:10px;background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.3);border-radius:10px;color:var(--red);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">Sair da conta</button>
               </div>
             </div>
           </div>
         </div>
-        <div class="nav">
-          <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
-          <button class="nav-btn" onclick="irTela('agendamentos',this)"><span class="nav-icon">📅</span>Agenda</button>
-          <button class="nav-btn" onclick="irTela('mensagens',this)"><span class="nav-icon">💬</span>Msgs</button>
-          <button class="nav-btn" onclick="irTela('historico',this)"><span class="nav-icon">⏱</span>Histórico</button>
-          <button class="nav-btn" onclick="irTela('relatorio',this)"><span class="nav-icon">📊</span>Relatório</button>
-          <button class="nav-btn" onclick="irTela('config',this)"><span class="nav-icon">⚙️</span>Config</button>
-        </div>
       </div>
       <div class="body" id="body-content"></div>
+      <nav class="nav">
+        <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
+        <button class="nav-btn" onclick="irTela('historico',this)"><span class="nav-icon">⏱</span>Histórico</button>
+        <button class="nav-btn" onclick="irTela('relatorio',this)"><span class="nav-icon">📊</span>Relatório</button>
+        <button class="nav-btn" onclick="irTela('config',this)"><span class="nav-icon">⚙️</span>Config</button>
+      </nav>
     </div>`;
   render();
 }
@@ -1011,8 +1020,8 @@ function render(){
   const el=document.getElementById('body-content');if(!el)return;
   el.innerHTML='';
   if(state.tela==='registrar')el.appendChild(renderRegistrar());
-  if(state.tela==='agendamentos')el.appendChild(renderAgendamentos());
-  if(state.tela==='mensagens')el.appendChild(renderMensagens());
+  // if(state.tela==='agendamentos')el.appendChild(renderAgendamentos()); // COMENTADO - AGENDAMENTO DESATIVADO
+  // if(state.tela==='mensagens')el.appendChild(renderMensagens()); // COMENTADO - MENSAGENS DESATIVADO
   if(state.tela==='historico')el.appendChild(renderHistorico());
   if(state.tela==='relatorio')el.appendChild(renderRelatorio());
   if(state.tela==='config')el.appendChild(renderConfig());
@@ -1033,8 +1042,30 @@ function renderRegistrar(){
   chipsHeader.innerHTML=`<span class="chips-label">Acesso rápido</span>`;
   const btnGer=document.createElement('button');btnGer.className='btn-gerenciar';btnGer.innerHTML='✏ Editar serviços';
   btnGer.onclick=()=>{renderModalCortes();openModal('modalCortes');};chipsHeader.appendChild(btnGer);
+
+  // Filtros por categoria
+  const catRow=div('');catRow.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap';
+  const cats=[['todos','Todos'],['cabelo','✂ Cabelo'],['barba','🪒 Barba'],['completo','✦ Completo']];
+  if(!state._chipCat) state._chipCat='todos';
+  cats.forEach(([k,l])=>{
+    const btn=document.createElement('button');
+    btn.style.cssText=`padding:4px 12px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border);font-family:'DM Sans',sans-serif;transition:all .15s;background:${state._chipCat===k?'var(--gold)':'var(--surface2)'};color:${state._chipCat===k?'#000':'var(--muted)'}`;
+    btn.textContent=l;
+    btn.onclick=()=>{state._chipCat=k;render();};
+    catRow.appendChild(btn);
+  });
+  chipsSection.appendChild(catRow);
+
   const chipsDiv=div('chips');
-  state.cortesLista.forEach(c=>{
+  // Filtra por categoria
+  const categorizar=(nome)=>{
+    const n=nome.toLowerCase();
+    if(n.includes('barba'))return'barba';
+    if(n.includes('completo')||n.includes('combo')||n.includes('corte + barba')||n.includes('barba + corte'))return'completo';
+    return'cabelo';
+  };
+  const listaFiltrada=state._chipCat==='todos'?state.cortesLista:state.cortesLista.filter(c=>categorizar(c.nome)===state._chipCat);
+  listaFiltrada.forEach(c=>{
     const ch=document.createElement('span');ch.className='chip';ch.textContent=c.nome;
     ch.onclick=()=>{state.corteNome=c.nome;inp.value=c.nome;if(c.preco){state.precoRaw=String(Math.round(c.preco*100));updatePrecoInput();}drop.classList.remove('show');};chipsDiv.appendChild(ch);
   });
@@ -1065,7 +1096,7 @@ function renderRegistrar(){
 
   // QR Code PIX
   const qrWrap=div('');qrWrap.id='qr-pix-wrap';qrWrap.style.cssText='text-align:center;margin-top:12px;display:none';
-  qrWrap.innerHTML=`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">QR Code PIX</div><div id="qr-canvas-container" style="display:inline-block;border-radius:12px;background:#fff;padding:10px"></div><div id="qr-chave" style="font-size:12px;color:var(--muted);margin-top:8px;word-break:break-all;padding:0 8px"></div>`;
+  qrWrap.innerHTML=`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">QR Code PIX</div><div id="qr-canvas-container" style="display:inline-block;border-radius:12px;background:#fff;padding:10px"></div><div id="qr-chave" style="font-size:12px;color:var(--muted);margin-top:8px;word-break:break-all;padding:0 8px"></div><button onclick="copiarPixBarbeiro()" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:11px;cursor:pointer;padding:5px 14px;font-family:'DM Sans',sans-serif">📋 Copiar chave</button>`;
   fieldPag.appendChild(qrWrap);
   card.appendChild(fieldPag);
 
@@ -1116,7 +1147,11 @@ function renderHistorico(){
   if(!filtrados.length){const v=div('vazio');v.innerHTML=`<div class="vazio-icon">🪒</div>Nenhum atendimento neste período`;frag.appendChild(v);return frag;}
   const porData={};filtrados.forEach(r=>{if(!porData[r.data])porData[r.data]=[];porData[r.data].push(r);});
   Object.entries(porData).sort((a,b)=>b[0].localeCompare(a[0])).forEach(([data,regs])=>{
-    const divider=div('section-divider');divider.textContent=fmtDate(data);frag.appendChild(divider);
+    const dTotal=regs.reduce((s,r)=>s+r.valor+(r.gorjeta||0),0);
+    const divider=div('');
+    divider.style.cssText='display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px;padding:0 2px';
+    divider.innerHTML=`<span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px">${fmtDate(data)}</span><span style="font-size:12px;color:var(--gold);font-family:'Playfair Display',serif">${brl(dTotal)} · ${regs.length} corte${regs.length!==1?'s':''}</span>`;
+    frag.appendChild(divider);
     regs.forEach(r=>{const card=div('registro-card');const pagColor=PAG_COLORS[r.pagamento||'pix'];card.innerHTML=`<div class="reg-left"><div class="reg-corte">${r.corte}</div><div class="reg-meta"><span>${r.hora}</span><span class="reg-pag"><span class="pag-dot" style="background:${pagColor}"></span>${r.pagamento||'pix'}</span></div>${r.obs?`<div class="reg-obs">${r.obs}</div>`:''}</div><div class="reg-right"><div class="reg-val">${brl(r.valor)}</div>${r.gorjeta?`<div class="reg-gorj">+${brl(r.gorjeta)} gorj.</div>`:''}<button class="btn-del" onclick="confirmarExcluir('${r.id}')">✕</button></div>`;frag.appendChild(card);});
   });return frag;
 }
@@ -1283,26 +1318,15 @@ function renderConfig(){
       ${plano==='premium'?'<span style="font-size:11px;background:rgba(76,175,120,.15);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;margin-left:auto">Ativo</span>':''}
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
-      ${['Registros ilimitados','Múltiplos barbeiros','Exportar relatório PDF','Metas de faturamento','QR Code PIX automático','Histórico completo'].map(f=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="color:var(--green)">✓</span>${f}</div>`).join('')}
+      ${['Registros ilimitados','Múltiplos barbeiros','Exportar relatório PDF','Metas de faturamento','QR Code PIX automático','Histórico completo','Agendamento online','Pix automático no agendamento','Mensagens WhatsApp automáticas'].map(f=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="color:var(--green)">✓</span>${f}</div>`).join('')}
     </div>
   </div>`;
   card.appendChild(premCard);
   frag.appendChild(card);
 
-  // Segurança — credenciais
+  // Segurança — sem alteração de credenciais
   const secCard=div('card');secCard.innerHTML=`<div class="card-title">Segurança & Acesso</div>`;
-  const credRow=div('corte-item');credRow.style.cursor='pointer';
-  credRow.innerHTML=`<div style="width:36px;height:36px;background:var(--surface2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔑</div><div style="flex:1"><div style="font-size:15px">Alterar E-mail / Senha</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Atualizar credenciais de acesso</div></div><div style="color:var(--muted)">›</div>`;
-  credRow.onclick=()=>{
-    document.getElementById('cred-senha-atual').value='';
-    document.getElementById('cred-novo-email').value='';
-    document.getElementById('cred-nova-senha').value='';
-    document.getElementById('cred-error').style.display='none';
-    openModal('modalCredenciais');
-  };
-  secCard.appendChild(credRow);
   const autoRow2=div('seguranca-opt');
-  const autoLogin=LS.get('bc_auto_login',true);
   autoRow2.innerHTML=`<div><div class="seguranca-opt-label">Login automático</div><div class="seguranca-opt-sub">Controle rápido no topo do app</div></div><span style="font-size:12px;color:var(--muted)">▲ Header</span>`;
   secCard.appendChild(autoRow2);
   frag.appendChild(secCard);
@@ -1319,41 +1343,31 @@ window.salvarChavePix=function(){
 
 
 
-// ── PIX PAYLOAD (EMV/BACEN spec) ──────────────────────────────────────────────
-function gerarPixPayload(chave){
+// ── PIX PAYLOAD (EMV/BACEN spec) — suporta CPF, CNPJ, email, telefone, chave aleatória ──
+function gerarPixPayload(chave, valor, nomeBarbeiro){
   chave=(chave||'').trim();
-  const nome='BarberCash'.replace(/[^a-zA-Z0-9 ]/g,'').substring(0,25);
-  const cidade='Brasil'.replace(/[^a-zA-Z0-9 ]/g,'').substring(0,15);
-  function tlv(id,val){return id+String(val.length).padStart(2,'0')+val;}
-  const gui=tlv('00','BR.GOV.BCB.PIX')+tlv('01',chave);
-  // Monta sem CRC
-  const body=[
-    '000201',
-    tlv('26',gui),
-    '52040000',
-    '5303986',
-    '5802BR',
-    tlv('59',nome),
-    tlv('60',cidade),
-    tlv('62',tlv('05','***')),
-    '6304'           // tag CRC — valor calculado a seguir
-  ].join('');
-  // CRC-16/CCITT-FALSE: poly=0x1021, init=0xFFFF, refin=false, refout=false
+  // Limpa nome para payload (máx 25 chars, apenas alfanumérico e espaço)
+  const nome=(nomeBarbeiro||state.nomeUsuario||'Barbeiro').replace(/[^a-zA-Z0-9 ]/g,'').substring(0,25)||'Barbeiro';
+  const cidade='Brasil'.substring(0,15);
+  function lv(id,val){const l=String(val.length).padStart(2,'0');return id+l+val;}
+  // Merchant Account Info — GUI padrão BACEN PIX
+  const merchantAccInfo=lv('00','BR.GOV.BCB.PIX')+lv('01',chave);
+  // Monta payload sem CRC
+  let parts=['000201',lv('26',merchantAccInfo),'52040000','5303986','5802BR',lv('59',nome),lv('60',cidade)];
+  if(valor&&valor>0){const vStr=valor.toFixed(2);parts.push(lv('54',vStr));}
+  parts.push(lv('62',lv('05','***')));
+  parts.push('6304');
+  const body=parts.join('');
+  // CRC-16/CCITT-FALSE
   let crc=0xFFFF;
-  for(let i=0;i<body.length;i++){
-    crc^=body.charCodeAt(i)<<8;
-    for(let j=0;j<8;j++) crc=crc&0x8000?(crc<<1)^0x1021:(crc<<1);
-    crc&=0xFFFF;
-  }
+  for(let i=0;i<body.length;i++){crc^=body.charCodeAt(i)<<8;for(let j=0;j<8;j++)crc=crc&0x8000?(crc<<1)^0x1021:(crc<<1);crc&=0xFFFF;}
   return body+crc.toString(16).toUpperCase().padStart(4,'0');
 }
 
 // ── QR CODE NATIVO (canvas, sem API externa) ──────────────────────────────────
-// Implementação QR Code versão 5, ECC M, 100% JavaScript — sem dependências
 function gerarQR(container, texto, sizePx){
   container.innerHTML='';
   try{
-    // Usa a lib qrcode-generator carregada no head
     const qr=qrcode(0,'M');
     qr.addData(texto,'Byte');
     qr.make();
@@ -1386,7 +1400,7 @@ function renderQrPix(){
   const container=document.getElementById('qr-canvas-container');
   if(!container)return;
   try{
-    const payload=gerarPixPayload(state.chavePix);
+    const payload=gerarPixPayload(state.chavePix,0,state.nomeUsuario);
     gerarQR(container,payload,160);
   }catch(e){gerarQR(container,state.chavePix,160);}
 }
