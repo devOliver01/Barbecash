@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>BarberCash · Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#080808;--surface:#111;--surface2:#1a1a1a;--surface3:#222;
+  --border:#2a2a2a;--border2:#333;
+  --gold:#c9a84c;--gold-light:#e8c870;--gold-dim:#7a6230;
+  --text:#f0ede8;--muted:#666;--muted2:#444;
+  --red:#e05555;--green:#4caf78;--blue:#5b9cf6;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
+body{overflow-x:hidden}
+
+/* ── LOGIN ── */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px 28px;width:100%;max-width:380px}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.login-logo-icon{width:48px;height:48px;background:var(--gold);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.login-logo-title{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold)}
+.login-logo-sub{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:2px}
+.login-logo-badge{font-size:10px;background:rgba(201,168,76,.15);border:1px solid var(--gold-dim);border-radius:6px;padding:2px 8px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-top:4px;display:inline-block}
+.lfield{margin-bottom:14px}
+.lfield label{display:block;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.inp{width:100%;background:#0a0a0a;border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--gold-dim)}
+select.inp{cursor:pointer}
+textarea.inp{resize:vertical;min-height:80px;font-size:14px}
+.pass-wrap{position:relative}
+.pass-wrap .inp{padding-right:44px}
+.pass-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;font-size:16px}
+.btn-login{width:100%;padding:14px;background:var(--gold);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Playfair Display',serif;letter-spacing:1px;margin-top:6px;transition:opacity .2s}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+.lerr{font-size:12px;color:var(--red);background:rgba(224,85,85,.1);border-radius:8px;padding:8px 12px;margin-top:8px;display:none}
+
+/* ── APP LAYOUT ── */
+.app{display:none;min-height:100vh;flex-direction:column}
+.app.show{display:flex}
+
+/* TOP BAR (mobile) */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-logo{display:flex;align-items:center;gap:10px}
+.topbar-icon{width:32px;height:32px;background:var(--gold);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.topbar-title{font-family:'Playfair Display',serif;font-size:17px;color:var(--gold)}
+.topbar-badge{font-size:9px;background:rgba(201,168,76,.15);border:1px solid var(--gold-dim);border-radius:5px;padding:1px 7px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-left:4px}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.btn-menu{background:none;border:1px solid var(--border);border-radius:9px;width:34px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;flex-shrink:0}
+.btn-menu span{width:16px;height:2px;background:var(--text);border-radius:1px;display:block}
+.btn-sair{background:none;border:1px solid var(--border);border-radius:9px;padding:6px 12px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* BOTTOM NAV (mobile) */
+.bottom-nav{background:var(--surface);border-top:1px solid var(--border);display:flex;position:sticky;bottom:0;z-index:50}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 8px;cursor:pointer;font-size:10px;color:var(--muted);border-top:2px solid transparent;transition:all .15s}
+.bnav-item.active{color:var(--gold);border-top-color:var(--gold)}
+.bnav-item .bi{font-size:18px}
+
+/* MAIN CONTENT */
+.main-content{flex:1;overflow-y:auto;padding:16px}
+.main-content::-webkit-scrollbar{display:none}
+
+/* DESKTOP SIDEBAR LAYOUT */
+@media(min-width:768px){
+  .topbar{display:none}
+  .bottom-nav{display:none}
+  .app.show{flex-direction:row}
+  .sidebar-desktop{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .sidebar-desktop::-webkit-scrollbar{display:none}
+  .main-content{padding:28px}
+}
+@media(max-width:767px){
+  .sidebar-desktop{display:none}
+}
+
+/* SIDEBAR DESKTOP */
+.sidebar-desktop{display:none}
+.sd-logo{padding:20px 18px;border-bottom:1px solid var(--border)}
+.sd-logo-row{display:flex;align-items:center;gap:10px}
+.sd-logo-icon{width:36px;height:36px;background:var(--gold);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sd-logo-title{font-family:'Playfair Display',serif;font-size:17px;color:var(--gold)}
+.sd-logo-sub{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+.sd-nav{padding:12px 8px;flex:1}
+.sd-section{font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:1.5px;padding:8px 12px 4px;margin-top:6px}
+.sd-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s;margin-bottom:2px}
+.sd-item:hover{background:var(--surface2);color:var(--text)}
+.sd-item.active{background:rgba(201,168,76,.12);color:var(--gold)}
+.sd-item .ni{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.sd-footer{padding:12px 8px;border-top:1px solid var(--border)}
+.btn-sair-sd{width:100%;padding:9px 12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:8px;transition:all .2s}
+.btn-sair-sd:hover{border-color:var(--red);color:var(--red)}
+
+/* PAGES */
+.page{display:none}
+.page.active{display:block}
+.page-header{margin-bottom:20px}
+.page-title{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);margin-bottom:4px}
+.page-sub{font-size:12px;color:var(--muted)}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+@media(min-width:600px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px}
+.stat-val{font-family:'Playfair Display',serif;font-size:24px;color:var(--gold);margin-bottom:3px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+.card-title{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px;font-weight:600}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:400px}
+th{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 10px;font-size:13px;border-bottom:1px solid var(--border2)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-premium{background:rgba(201,168,76,.15);color:var(--gold);border:1px solid var(--gold-dim)}
+.badge-trial{background:rgba(91,156,246,.1);color:var(--blue);border:1px solid rgba(91,156,246,.3)}
+.badge-expirado{background:rgba(224,85,85,.1);color:var(--red);border:1px solid rgba(224,85,85,.3)}
+
+/* BUTTONS */
+.btn{padding:7px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;transition:all .15s}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-gold{background:var(--gold);color:#000}
+.btn-red{background:var(--red);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--muted)}
+.btn-full{width:100%;padding:13px;background:var(--gold);color:#000;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Playfair Display',serif;letter-spacing:1px;transition:opacity .2s;margin-top:4px}
+.btn-full:hover{opacity:.9}
+.btn-full:disabled{opacity:.5;cursor:not-allowed}
+
+/* FIELDS */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.field-row{grid-template-columns:1fr}}
+
+/* TOGGLE */
+.tgl-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border2)}
+.tgl-row:last-child{border-bottom:none}
+.tgl-label{font-size:14px}
+.tgl-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.tgl{width:40px;height:22px;background:var(--surface2);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;border:1px solid var(--border);flex-shrink:0}
+.tgl.on{background:var(--green);border-color:var(--green)}
+.tgl-knob{position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .2s}
+.tgl.on .tgl-knob{left:20px}
+
+/* SEARCH */
+.search-bar{width:100%;background:#0a0a0a;border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:14px}
+.search-bar:focus{border-color:var(--gold-dim)}
+
+/* USER AVATAR */
+.uavatar{width:30px;height:30px;border-radius:50%;background:var(--gold-dim);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:13px;color:var(--gold-light);flex-shrink:0}
+
+/* NOTIF PREVIEW */
+.notif-preview{background:#0a0a0a;border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:8px}
+.notif-preview-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.notif-bubble{background:var(--surface2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text);line-height:1.5}
+
+/* TOAST */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.toast.ok{background:var(--green);color:#fff}
+.toast.err{background:var(--red);color:#fff}
+
+/* LOADING */
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;gap:14px;color:var(--muted);font-size:13px}
+
+/* MISC */
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px}
+.empty-icon{font-size:32px;margin-bottom:10px}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.info-box{background:var(--surface2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+.user-card{background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.user-card-info{flex:1;min-width:0}
+.user-card-name{font-size:14px;font-weight:500;margin-bottom:2px}
+.user-card-meta{font-size:11px;color:var(--muted)}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .2s ease forwards}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div id="login-wrap" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">✂</div>
+      <div>
+        <div class="login-logo-title">BarberCash <span class="login-logo-badge">Admin</span></div>
+        <div class="login-logo-sub">Painel de Controle</div>
+      </div>
+    </div>
+    <div class="lfield">
+      <label>E-mail</label>
+      <input class="inp" id="adm-email" type="email" placeholder="admin@exemplo.com" autocomplete="email"/>
+    </div>
+    <div class="lfield">
+      <label>Senha</label>
+      <div class="pass-wrap">
+        <input class="inp" id="adm-senha" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLoginAdmin()"/>
+        <button class="pass-eye" onclick="toggleEye('adm-senha',this)" type="button">👁</button>
+      </div>
+    </div>
+    <div class="lerr" id="login-err"></div>
+    <button class="btn-login" id="btn-adm-login" onclick="fazerLoginAdmin()">Entrar no Painel</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="admin-app" class="app">
+
+  <!-- SIDEBAR DESKTOP -->
+  <div class="sidebar-desktop">
+    <div class="sd-logo">
+      <div class="sd-logo-row">
+        <div class="sd-logo-icon">✂</div>
+        <div>
+          <div class="sd-logo-title">BarberCash</div>
+          <div class="sd-logo-sub">Admin Panel</div>
+        </div>
+      </div>
+    </div>
+    <div class="sd-nav">
+      <div class="sd-section">Geral</div>
+      <div class="sd-item active" onclick="irPagina('dashboard',this)"><span class="ni">📊</span>Dashboard</div>
+      <div class="sd-item" onclick="irPagina('usuarios',this)"><span class="ni">👥</span>Usuários</div>
+      <div class="sd-section">App</div>
+      <div class="sd-item" onclick="irPagina('textos',this)"><span class="ni">✏️</span>Textos & Preços</div>
+      <div class="sd-item" onclick="irPagina('pagamentos',this)"><span class="ni">💳</span>Pagamentos</div>
+      <div class="sd-item" onclick="irPagina('credenciais',this)"><span class="ni">🔑</span>Minha Conta</div>
+      <div class="sd-item" onclick="irPagina('notificacoes',this)"><span class="ni">📢</span>Notificações</div>
+    </div>
+    <div class="sd-footer">
+      <button class="btn-sair-sd" onclick="fazerLogoutAdmin()">🚪 Sair do painel</button>
+    </div>
+  </div>
+
+  <!-- MOBILE TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-icon">✂</div>
+      <div class="topbar-title">BarberCash <span class="topbar-badge">Admin</span></div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-sair" onclick="fazerLogoutAdmin()">Sair</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Visão geral do BarberCash</div>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="spinner" style="width:20px;height:20px;margin:0"></div></div>
+        <div class="stat-card"></div><div class="stat-card"></div><div class="stat-card"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Usuários Recentes</div>
+        <div id="dash-users"><div class="loading-wrap"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- USUÁRIOS -->
+    <div class="page" id="page-usuarios">
+      <div class="page-header">
+        <div class="page-title">Usuários</div>
+        <div class="page-sub">Gerencie todos os usuários cadastrados</div>
+      </div>
+      <input class="search-bar" id="search-u" placeholder="🔍 Buscar por nome..." oninput="filtrarUsuarios()"/>
+      <div id="lista-usuarios"><div class="loading-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- TEXTOS & PREÇOS -->
+    <div class="page" id="page-textos">
+      <div class="page-header">
+        <div class="page-title">Textos & Preços</div>
+        <div class="page-sub">Altere configurações do app sem subir código</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Plano Premium</div>
+        <div class="field-row">
+          <div class="field"><label>Preço mensal (R$)</label><input class="inp" id="cfg-preco" type="number" step="0.01" placeholder="19.90"/></div>
+        </div>
+        <div class="field"><label>Código de ativação premium</label><input class="inp" id="cfg-codigo" placeholder="BARBER2025" style="text-transform:uppercase"/></div>
+        <div class="field"><label>Chave PIX para pagamento (QR Code no app)</label><input class="inp" id="cfg-pix-admin" placeholder="CPF, e-mail, telefone ou chave aleatória"/></div>
+        <div class="info-box">ℹ️ O app libera 30 dias de acesso a partir da ativação do código. Renovação manual pelo código a cada mês.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Textos do App</div>
+        <div class="field"><label>Texto do botão upgrade</label><input class="inp" id="cfg-btn-upgrade" placeholder="Assinar Premium"/></div>
+        <div class="field"><label>Mensagem de suporte</label><input class="inp" id="cfg-suporte" placeholder="Entre em contato via WhatsApp ou Instagram"/></div>
+        <div class="field"><label>WhatsApp (com DDI, ex: 5511999999999)</label><input class="inp" id="cfg-whatsapp" type="tel" placeholder="5511999999999"/></div>
+        <div class="field"><label>Instagram</label><input class="inp" id="cfg-instagram" placeholder="@barbercash"/></div>
+      </div>
+      <button class="btn-full" onclick="salvarConfiguracoes()">💾 Salvar Configurações</button>
+    </div>
+
+    <!-- PAGAMENTOS -->
+    <div class="page" id="page-pagamentos">
+      <div class="page-header">
+        <div class="page-title">Pagamentos</div>
+        <div class="page-sub">Configure as formas de pagamento do app</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Formas disponíveis</div>
+        <div class="tgl-row">
+          <div><div class="tgl-label">◈ Pix</div><div class="tgl-sub">Pagamento via chave PIX</div></div>
+          <div class="tgl on" id="tpix" onclick="this.classList.toggle('on');this.querySelector('.tgl-knob').style.left=this.classList.contains('on')?'20px':'2px'"><div class="tgl-knob" style="left:20px"></div></div>
+        </div>
+        <div class="tgl-row">
+          <div><div class="tgl-label">$ Dinheiro</div><div class="tgl-sub">Pagamento em espécie</div></div>
+          <div class="tgl on" id="tdin" onclick="this.classList.toggle('on');this.querySelector('.tgl-knob').style.left=this.classList.contains('on')?'20px':'2px'"><div class="tgl-knob" style="left:20px"></div></div>
+        </div>
+        <div class="tgl-row">
+          <div><div class="tgl-label">▣ Cartão</div><div class="tgl-sub">Crédito e débito</div></div>
+          <div class="tgl on" id="tcar" onclick="this.classList.toggle('on');this.querySelector('.tgl-knob').style.left=this.classList.contains('on')?'20px':'2px'"><div class="tgl-knob" style="left:20px"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Padrão & Nomes</div>
+        <div class="field"><label>Forma padrão selecionada</label>
+          <select class="inp" id="cfg-pag-padrao">
+            <option value="pix">Pix</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="cartao">Cartão</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Nome do Pix</label><input class="inp" id="cfg-npix" placeholder="Pix"/></div>
+          <div class="field"><label>Nome Dinheiro</label><input class="inp" id="cfg-ndin" placeholder="Dinheiro"/></div>
+        </div>
+        <div class="field"><label>Nome Cartão</label><input class="inp" id="cfg-ncar" placeholder="Cartão"/></div>
+      </div>
+      <button class="btn-full" onclick="salvarPagamentos()">💾 Salvar Pagamentos</button>
+    </div>
+
+    <!-- MINHA CONTA -->
+    <div class="page" id="page-credenciais">
+      <div class="page-header">
+        <div class="page-title">Minha Conta</div>
+        <div class="page-sub">Altere seu e-mail e senha de acesso ao painel</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Alterar Credenciais</div>
+        <div class="info-box">Por segurança, confirme sua senha atual antes de fazer alterações.</div>
+        <div class="field"><label>Senha atual *</label>
+          <div class="pass-wrap">
+            <input class="inp" id="cred-atual" type="password" placeholder="Sua senha atual"/>
+            <button class="pass-eye" onclick="toggleEye('cred-atual',this)" type="button">👁</button>
+          </div>
+        </div>
+        <div class="field"><label>Novo e-mail (deixe em branco para não alterar)</label><input class="inp" id="cred-email" type="email" placeholder="novo@email.com"/></div>
+        <div class="field"><label>Nova senha (deixe em branco para não alterar)</label>
+          <div class="pass-wrap">
+            <input class="inp" id="cred-senha" type="password" placeholder="Mín. 6 caracteres"/>
+            <button class="pass-eye" onclick="toggleEye('cred-senha',this)" type="button">👁</button>
+          </div>
+        </div>
+        <div id="cred-err" style="display:none;font-size:12px;color:var(--red);background:rgba(224,85,85,.1);border-radius:8px;padding:8px 12px;margin-bottom:12px"></div>
+        <button class="btn-full" id="btn-salvar-cred" onclick="salvarCredenciais()">Salvar Alterações</button>
+      </div>
+    </div>
+
+    <!-- NOTIFICAÇÕES -->
+    <div class="page" id="page-notificacoes">
+      <div class="page-header">
+        <div class="page-title">Notificações</div>
+        <div class="page-sub">Envie avisos para os usuários do app</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Nova Notificação</div>
+        <div class="field"><label>Título</label><input class="inp" id="notif-titulo" placeholder="Ex: Nova atualização!" oninput="previewNotif()"/></div>
+        <div class="field"><label>Mensagem</label><textarea class="inp" id="notif-msg" placeholder="Digite sua mensagem..." oninput="previewNotif()"></textarea></div>
+        <div class="field"><label>Tipo</label>
+          <select class="inp" id="notif-tipo">
+            <option value="info">ℹ️ Informação</option>
+            <option value="ok">✅ Sucesso</option>
+            <option value="aviso">⚠️ Aviso</option>
+            <option value="promo">🎁 Promoção</option>
+          </select>
+        </div>
+        <div class="notif-preview">
+          <div class="notif-preview-title">Preview</div>
+          <div class="notif-bubble" id="notif-preview-txt">Preencha título e mensagem para ver o preview.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Destinatários</div>
+        <div class="tgl-row">
+          <div><div class="tgl-label">Todos os usuários</div></div>
+          <div class="tgl on" id="tdest-todos" onclick="selecionarDest(this)"><div class="tgl-knob" style="left:20px"></div></div>
+        </div>
+        <div class="tgl-row">
+          <div><div class="tgl-label">Apenas trial</div><div class="tgl-sub">Incentiva upgrade</div></div>
+          <div class="tgl" id="tdest-trial" onclick="selecionarDest(this)"><div class="tgl-knob"></div></div>
+        </div>
+        <div class="tgl-row">
+          <div><div class="tgl-label">Apenas premium</div></div>
+          <div class="tgl" id="tdest-premium" onclick="selecionarDest(this)"><div class="tgl-knob"></div></div>
+        </div>
+      </div>
+      <button class="btn-full" onclick="enviarNotificacao()">📢 Enviar Notificação</button>
+      <div class="divider"></div>
+      <div class="card">
+        <div class="card-title">Histórico</div>
+        <div id="notif-hist"><div class="loading-wrap"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+  </div><!-- end main-content -->
+
+  <!-- MOBILE BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="bnav-item active" onclick="irPagina('dashboard',this,true)"><span class="bi">📊</span>Dashboard</div>
+    <div class="bnav-item" onclick="irPagina('usuarios',this,true)"><span class="bi">👥</span>Usuários</div>
+    <div class="bnav-item" onclick="irPagina('textos',this,true)"><span class="bi">✏️</span>Textos</div>
+    <div class="bnav-item" onclick="irPagina('pagamentos',this,true)"><span class="bi">💳</span>Pagto</div>
+    <div class="bnav-item" onclick="irPagina('notificacoes',this,true)"><span class="bi">📢</span>Avisos</div>
+  </div>
+
+</div><!-- end app -->
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, collection, addDoc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
+  authDomain: "barbercash-f6891.firebaseapp.com",
+  projectId: "barbercash-f6891",
+  storageBucket: "barbercash-f6891.firebasestorage.app",
+  messagingSenderId: "222760224701",
+  appId: "1:222760224701:web:afa93064a97b10c28c34d4"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg,tipo='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className=`toast show ${tipo}`;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',3000);
+}
+
+function diasRestantes(inicio,trialDias=30){
+  if(!inicio)return 0;
+  return Math.max(0,trialDias-Math.floor((Date.now()-inicio)/(1000*60*60*24)));
+}
+function diasRestantesPremium(u){
+  if(!u.plano?.premiumExpiracao)return null;
+  return Math.max(0,Math.ceil((u.plano.premiumExpiracao-Date.now())/(1000*60*60*24)));
+}
+function getBadge(u){
+  if(u.plano?.premium){
+    const dias=diasRestantesPremium(u);
+    if(dias!==null&&dias<=0) return`<span class="badge badge-expirado">Premium Expirado</span>`;
+    return`<span class="badge badge-premium">✦ Premium${dias!==null?` · ${dias}d`:''}</span>`;
+  }
+  if(u.plano?.inicio&&diasRestantes(u.plano.inicio)>0)return`<span class="badge badge-trial">Trial · ${diasRestantes(u.plano.inicio)}d</span>`;
+  return`<span class="badge badge-expirado">Expirado</span>`;
+}
+function fmtDate(ts){if(!ts)return'—';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleDateString('pt-BR');}
+
+// Toggle olho senha
+window.toggleEye=function(id,btn){
+  const inp=document.getElementById(id);
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
+};
+
+// ── DADOS ─────────────────────────────────────────────────────────────────────
+let allUsers=[];
+let globalCfg={};
+
+async function carregarTudo(){
+  await Promise.all([carregarUsuarios(),carregarCfg(),carregarNotifHist()]);
+  renderDashboard();
+  renderUsuarios();
+}
+
+async function carregarUsuarios(){
+  try{
+    const snap=await getDocs(collection(db,'users'));
+    allUsers=[];
+    for(const d of snap.docs){
+      const cfg=await getDoc(doc(db,'users',d.id,'config','main'));
+      allUsers.push({uid:d.id,...(cfg.exists()?cfg.data():{})});
+    }
+  }catch(e){console.error(e);}
+}
+
+async function carregarCfg(){
+  try{
+    const cfgDoc=await getDoc(doc(db,'admin','config'));
+    globalCfg=cfgDoc.exists()?cfgDoc.data():{};
+    preencherForms();
+  }catch(e){console.error(e);}
+}
+
+async function carregarNotifHist(){
+  const el=document.getElementById('notif-hist');
+  try{
+    const snap=await getDocs(query(collection(db,'admin','notificacoes','lista'),orderBy('criadoEm','desc')));
+    if(snap.empty){el.innerHTML=`<div class="empty"><div class="empty-icon">📭</div>Nenhuma notificação enviada.</div>`;return;}
+    el.innerHTML='';
+    const icons={info:'ℹ️',ok:'✅',aviso:'⚠️',promo:'🎁'};
+    snap.docs.slice(0,10).forEach(d=>{
+      const n=d.data();
+      const row=document.createElement('div');
+      row.style.cssText='padding:12px 0;border-bottom:1px solid var(--border2);display:flex;gap:10px;align-items:flex-start';
+      row.innerHTML=`<div style="font-size:18px;margin-top:2px">${icons[n.tipo]||'📢'}</div><div style="flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:2px">${n.titulo||''}</div><div style="font-size:12px;color:var(--muted);margin-bottom:3px">${n.mensagem||''}</div><div style="font-size:10px;color:var(--muted2)">${fmtDate(n.criadoEm)} · ${n.destinatarios||'todos'}</div></div>`;
+      el.appendChild(row);
+    });
+  }catch(e){el.innerHTML=`<div class="empty">Erro ao carregar.</div>`;}
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const total=allUsers.length;
+  const premium=allUsers.filter(u=>u.plano?.premium).length;
+  const trial=allUsers.filter(u=>!u.plano?.premium&&u.plano?.inicio&&diasRestantes(u.plano.inicio)>0).length;
+  const exp=allUsers.filter(u=>!u.plano?.premium&&(!u.plano?.inicio||diasRestantes(u.plano.inicio)<=0)).length;
+  document.getElementById('stats-grid').innerHTML=`
+    <div class="stat-card fade-in"><div class="stat-val">${total}</div><div class="stat-label">Total usuários</div></div>
+    <div class="stat-card fade-in"><div class="stat-val" style="color:var(--gold)">${premium}</div><div class="stat-label">Premium</div></div>
+    <div class="stat-card fade-in"><div class="stat-val" style="color:var(--blue)">${trial}</div><div class="stat-label">Trial</div></div>
+    <div class="stat-card fade-in"><div class="stat-val" style="color:var(--red)">${exp}</div><div class="stat-label">Expirados</div></div>`;
+  const el=document.getElementById('dash-users');
+  if(!allUsers.length){el.innerHTML=`<div class="empty"><div class="empty-icon">👥</div>Nenhum usuário ainda.</div>`;return;}
+  el.innerHTML='';
+  allUsers.slice(0,5).forEach(u=>{
+    const row=document.createElement('div');
+    row.className='user-card';
+    row.innerHTML=`<div class="uavatar">${(u.nomeUsuario||'?')[0].toUpperCase()}</div><div class="user-card-info"><div class="user-card-name">${u.nomeUsuario||'—'}</div><div class="user-card-meta">${getBadge(u)}</div></div>`;
+    el.appendChild(row);
+  });
+}
+
+// ── USUÁRIOS ──────────────────────────────────────────────────────────────────
+function renderUsuarios(filtro=''){
+  const el=document.getElementById('lista-usuarios');
+  const lista=filtro?allUsers.filter(u=>(u.nomeUsuario||'').toLowerCase().includes(filtro.toLowerCase())):allUsers;
+  if(!lista.length){el.innerHTML=`<div class="empty"><div class="empty-icon">👥</div>${filtro?'Nenhum resultado.':'Nenhum usuário.'}</div>`;return;}
+  el.innerHTML='';
+  // Mobile: cards. Desktop: table
+  const isMobile=window.innerWidth<768;
+  if(isMobile){
+    lista.forEach(u=>{
+      const dias=u.plano?.inicio?diasRestantes(u.plano.inicio):'—';
+      const card=document.createElement('div');
+      card.className='user-card';
+      card.style.cssText='flex-direction:column;align-items:flex-start;gap:10px';
+      card.innerHTML=`
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
+          <div class="uavatar">${(u.nomeUsuario||'?')[0].toUpperCase()}</div>
+          <div style="flex:1"><div style="font-size:14px;font-weight:500">${u.nomeUsuario||'—'}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${u.uid.slice(0,10)}...</div></div>
+          ${getBadge(u)}
+        </div>
+        <div style="display:flex;gap:8px;width:100%">
+          ${u.plano?.premium
+            ?`<button class="btn btn-sm btn-red" onclick="togglePremium('${u.uid}',false)" style="flex:1">Remover Premium</button>`
+            :`<button class="btn btn-sm btn-green" onclick="togglePremium('${u.uid}',true)" style="flex:1">Ativar Premium</button>`
+          }
+        </div>`;
+      el.appendChild(card);
+    });
+  }else{
+    const wrap=document.createElement('div');wrap.className='card';wrap.style.padding='0;overflow:hidden';
+    const tableWrap=document.createElement('div');tableWrap.className='table-wrap';
+    const table=document.createElement('table');
+    table.innerHTML=`<thead><tr><th>Usuário</th><th>Plano</th><th>Trial restante</th><th>Ações</th></tr></thead>`;
+    const tbody=document.createElement('tbody');
+    lista.forEach(u=>{
+      const tr=document.createElement('tr');
+      const dias=u.plano?.inicio?diasRestantes(u.plano.inicio)+' dias':'—';
+      tr.innerHTML=`
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="uavatar">${(u.nomeUsuario||'?')[0].toUpperCase()}</div><div><div>${u.nomeUsuario||'—'}</div><div style="font-size:10px;color:var(--muted)">${u.uid.slice(0,10)}...</div></div></div></td>
+        <td>${getBadge(u)}</td>
+        <td style="color:var(--muted)">${u.plano?.premium?'—':dias}</td>
+        <td><div style="display:flex;gap:6px">
+          ${u.plano?.premium
+            ?`<button class="btn btn-sm btn-red" onclick="togglePremium('${u.uid}',false)">Remover</button>`
+            :`<button class="btn btn-sm btn-green" onclick="togglePremium('${u.uid}',true)">Ativar Premium</button>`
+          }
+        </div></td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);tableWrap.appendChild(table);wrap.appendChild(tableWrap);el.appendChild(wrap);
+  }
+}
+
+window.filtrarUsuarios=function(){renderUsuarios(document.getElementById('search-u').value);};
+
+window.togglePremium=async function(uid,ativar){
+  try{
+    const agora=Date.now();
+    const expiracao=agora+(30*24*60*60*1000);
+    const updateData=ativar
+      ?{'plano.premium':true,'plano.tipo':'premium','plano.premiumExpiracao':expiracao}
+      :{'plano.premium':false,'plano.tipo':'trial','plano.premiumExpiracao':null};
+    await updateDoc(doc(db,'users',uid,'config','main'),updateData);
+    const u=allUsers.find(u=>u.uid===uid);
+    if(u){if(!u.plano)u.plano={};u.plano.premium=ativar;u.plano.tipo=ativar?'premium':'trial';if(ativar)u.plano.premiumExpiracao=expiracao;}
+    toast(ativar?'Premium ativado por 30 dias! ✓':'Premium removido.',ativar?'ok':'err');
+    renderUsuarios(document.getElementById('search-u').value);
+    renderDashboard();
+  }catch(e){toast('Erro ao atualizar.','err');}
+};
+
+// ── FORMULÁRIOS ───────────────────────────────────────────────────────────────
+function preencherForms(){
+  const c=globalCfg;
+  if(c.preco) document.getElementById('cfg-preco').value=c.preco;
+  if(c.codigoPremium) document.getElementById('cfg-codigo').value=c.codigoPremium;
+  if(c.pixAdmin) document.getElementById('cfg-pix-admin').value=c.pixAdmin;
+  if(c.btnUpgrade) document.getElementById('cfg-btn-upgrade').value=c.btnUpgrade;
+  if(c.suporteMsg) document.getElementById('cfg-suporte').value=c.suporteMsg;
+  if(c.whatsapp) document.getElementById('cfg-whatsapp').value=c.whatsapp;
+  if(c.instagram) document.getElementById('cfg-instagram').value=c.instagram;
+  if(c.pagamentos){
+    const p=c.pagamentos;
+    const setTgl=(id,val)=>{const el=document.getElementById(id);if(el){if(val===false)el.classList.remove('on');else el.classList.add('on');el.querySelector('.tgl-knob').style.left=el.classList.contains('on')?'20px':'2px';}};
+    setTgl('tpix',p.pix);setTgl('tdin',p.dinheiro);setTgl('tcar',p.cartao);
+    if(p.padrao) document.getElementById('cfg-pag-padrao').value=p.padrao;
+    if(p.nomePix) document.getElementById('cfg-npix').value=p.nomePix;
+    if(p.nomeDinheiro) document.getElementById('cfg-ndin').value=p.nomeDinheiro;
+    if(p.nomeCartao) document.getElementById('cfg-ncar').value=p.nomeCartao;
+  }
+}
+
+window.salvarConfiguracoes=async function(){
+  const cfg={
+    preco: document.getElementById('cfg-preco').value||'19.90',
+    codigoPremium: document.getElementById('cfg-codigo').value.trim().toUpperCase()||'BARBER2025',
+    pixAdmin: document.getElementById('cfg-pix-admin').value.trim(),
+    btnUpgrade: document.getElementById('cfg-btn-upgrade').value||'Assinar Premium',
+    suporteMsg: document.getElementById('cfg-suporte').value||'Entre em contato via WhatsApp ou Instagram',
+    whatsapp: document.getElementById('cfg-whatsapp').value.trim(),
+    instagram: document.getElementById('cfg-instagram').value.trim(),
+    atualizadoEm: Date.now(),
+  };
+  try{
+    await setDoc(doc(db,'admin','config'),{...globalCfg,...cfg},{merge:true});
+    globalCfg={...globalCfg,...cfg};
+    toast('Configurações salvas! ✓','ok');
+  }catch(e){toast('Erro ao salvar.','err');}
+};
+
+window.salvarPagamentos=async function(){
+  const pagamentos={
+    pix: document.getElementById('tpix').classList.contains('on'),
+    dinheiro: document.getElementById('tdin').classList.contains('on'),
+    cartao: document.getElementById('tcar').classList.contains('on'),
+    padrao: document.getElementById('cfg-pag-padrao').value,
+    nomePix: document.getElementById('cfg-npix').value||'Pix',
+    nomeDinheiro: document.getElementById('cfg-ndin').value||'Dinheiro',
+    nomeCartao: document.getElementById('cfg-ncar').value||'Cartão',
+  };
+  try{
+    await setDoc(doc(db,'admin','config'),{pagamentos,atualizadoEm:Date.now()},{merge:true});
+    globalCfg.pagamentos=pagamentos;
+    toast('Pagamentos salvos! ✓','ok');
+  }catch(e){toast('Erro ao salvar.','err');}
+};
+
+// ── CREDENCIAIS ───────────────────────────────────────────────────────────────
+window.salvarCredenciais=async function(){
+  const senhaAtual=document.getElementById('cred-atual').value;
+  const novoEmail=document.getElementById('cred-email').value.trim();
+  const novaSenha=document.getElementById('cred-senha').value;
+  const errEl=document.getElementById('cred-err');
+  const btn=document.getElementById('btn-salvar-cred');
+  errEl.style.display='none';
+  if(!senhaAtual){errEl.textContent='Informe sua senha atual.';errEl.style.display='block';return;}
+  if(!novoEmail&&!novaSenha){errEl.textContent='Informe o novo e-mail ou a nova senha.';errEl.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Salvando...';
+  try{
+    const user=auth.currentUser;
+    const cred=EmailAuthProvider.credential(user.email,senhaAtual);
+    await reauthenticateWithCredential(user,cred);
+    if(novoEmail&&novoEmail!==user.email) await updateEmail(user,novoEmail);
+    if(novaSenha) await updatePassword(user,novaSenha);
+    toast('Dados atualizados! ✓','ok');
+    document.getElementById('cred-atual').value='';
+    document.getElementById('cred-email').value='';
+    document.getElementById('cred-senha').value='';
+  }catch(e){
+    const msgs={'auth/wrong-password':'Senha atual incorreta.','auth/invalid-credential':'Senha atual incorreta.','auth/email-already-in-use':'E-mail já cadastrado.','auth/weak-password':'Senha fraca (mín. 6 chars).'};
+    errEl.textContent=msgs[e.code]||'Erro: '+e.message;errEl.style.display='block';
+  }
+  btn.disabled=false;btn.textContent='Salvar Alterações';
+};
+
+// ── NOTIFICAÇÕES ──────────────────────────────────────────────────────────────
+window.previewNotif=function(){
+  const t=document.getElementById('notif-titulo').value;
+  const m=document.getElementById('notif-msg').value;
+  const el=document.getElementById('notif-preview-txt');
+  if(!t&&!m){el.textContent='Preencha título e mensagem para ver o preview.';return;}
+  const icons={info:'ℹ️',ok:'✅',aviso:'⚠️',promo:'🎁'};
+  const tipo=document.getElementById('notif-tipo').value;
+  el.innerHTML=`${icons[tipo]||''} <strong>${t||''}</strong>${m?` — ${m}`:''}`;
+};
+
+window.selecionarDest=function(el){
+  ['tdest-todos','tdest-trial','tdest-premium'].forEach(id=>{
+    const t=document.getElementById(id);
+    t.classList.remove('on');t.querySelector('.tgl-knob').style.left='2px';
+  });
+  el.classList.add('on');el.querySelector('.tgl-knob').style.left='20px';
+};
+
+window.enviarNotificacao=async function(){
+  const titulo=document.getElementById('notif-titulo').value.trim();
+  const mensagem=document.getElementById('notif-msg').value.trim();
+  const tipo=document.getElementById('notif-tipo').value;
+  if(!titulo||!mensagem){toast('Preencha título e mensagem.','err');return;}
+  const dest=document.getElementById('tdest-todos').classList.contains('on')?'todos'
+    :document.getElementById('tdest-trial').classList.contains('on')?'trial':'premium';
+  try{
+    await addDoc(collection(db,'admin','notificacoes','lista'),{titulo,mensagem,tipo,destinatarios:dest,criadoEm:Date.now()});
+    await setDoc(doc(db,'admin','notificacao_ativa'),{titulo,mensagem,tipo,destinatarios:dest,criadoEm:Date.now()});
+    toast('Notificação enviada! ✓','ok');
+    document.getElementById('notif-titulo').value='';
+    document.getElementById('notif-msg').value='';
+    document.getElementById('notif-preview-txt').textContent='Preencha título e mensagem para ver o preview.';
+    await carregarNotifHist();
+  }catch(e){toast('Erro ao enviar.','err');}
+};
+
+// ── NAVEGAÇÃO ─────────────────────────────────────────────────────────────────
+window.irPagina=function(id,el,isMobile=false){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(isMobile){
+    document.querySelectorAll('.bnav-item').forEach(n=>n.classList.remove('active'));
+  }else{
+    document.querySelectorAll('.sd-item').forEach(n=>n.classList.remove('active'));
+  }
+  el.classList.add('active');
+  document.querySelector('.main-content').scrollTop=0;
+};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+window.fazerLoginAdmin=async function(){
+  const email=document.getElementById('adm-email').value.trim();
+  const senha=document.getElementById('adm-senha').value;
+  const errEl=document.getElementById('login-err');
+  const btn=document.getElementById('btn-adm-login');
+  errEl.style.display='none';
+  if(!email||!senha){errEl.textContent='Preencha e-mail e senha.';errEl.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Entrando...';
+  try{
+    await signInWithEmailAndPassword(auth,email,senha);
+  }catch(e){
+    const msgs={'auth/invalid-credential':'E-mail ou senha incorretos.','auth/user-not-found':'Usuário não encontrado.','auth/wrong-password':'Senha incorreta.','auth/too-many-requests':'Muitas tentativas. Aguarde.'};
+    errEl.textContent=msgs[e.code]||'Erro ao entrar.';errEl.style.display='block';
+    btn.disabled=false;btn.textContent='Entrar no Painel';
+  }
+};
+
+window.fazerLogoutAdmin=async function(){await signOut(auth);};
+
+onAuthStateChanged(auth,async user=>{
+  if(user){
+    document.getElementById('login-wrap').style.display='none';
+    document.getElementById('admin-app').classList.add('show');
+    await carregarTudo();
+  }else{
+    document.getElementById('login-wrap').style.display='flex';
+    document.getElementById('admin-app').classList.remove('show');
+  }
+});
+</script>
+</body>
+</html>
