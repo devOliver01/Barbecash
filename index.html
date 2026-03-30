@@ -994,22 +994,57 @@ window.toggleAutoLogin=function(){
   showFeedback(novoVal?'Login automático ativado.':'Login automático desativado.','ok');
 };
 
+// ── RESET STATE ───────────────────────────────────────────────────────────────
+function resetState(){
+  if(state._unsubAgendamentos){state._unsubAgendamentos();state._unsubAgendamentos=null;}
+  state.uid=null;
+  state.nomeUsuario='Barbeiro';
+  state.registros=[];
+  state.chavePix='';
+  state.plano={tipo:'trial',inicio:null,premium:false};
+  state.vagas=[];
+  state.agendamentos=[];
+  state._unsubAgendamentos=null;
+  state.notifAtiva=null;
+  state.cortesLista=[
+    {nome:'Corte Simples',preco:35},{nome:'Degradê',preco:45},{nome:'Corte Tesoura',preco:40},
+    {nome:'Corte Navalhado',preco:50},{nome:'Barba Completa',preco:30},{nome:'Barba + Corte',preco:70},
+    {nome:'Pigmentação',preco:80},{nome:'Sobrancelha',preco:15},{nome:'Pezinho',preco:10},{nome:'Luzes',preco:120},
+  ];
+  state.barbeiros=[{id:'eu',nome:'Eu'}];
+  state.barbeiroAtual='eu';
+  state.metas={dia:0,sem:0,mes:0};
+  state.tela='registrar';
+  state.periodo='hoje';
+  state.corteNome='';state.precoRaw='';state.gorjetaRaw='';state.gorjetaOn=false;state.pagamento='pix';state.obs='';
+  state.adminCfg={
+    preco:'19.90',trialDias:30,btnUpgrade:'Assinar Premium',
+    descPremium:'Acesso completo a todos os recursos.',
+    whatsapp:'',instagram:'',suporteMsg:'Para assinar, entre em contato via WhatsApp ou Instagram',
+    codigoPremium:'BARBER2025',pixAdmin:'',
+    pagamentos:{pix:true,dinheiro:true,cartao:true,padrao:'pix',nomePix:'Pix',nomeDinheiro:'Dinheiro',nomeCartao:'Cartão'},
+  };
+}
+
 // ── AUTH STATE ────────────────────────────────────────────────────────────────
-// Garante persistência LOCAL por padrão para que o login automático funcione
-// (sem isso, o Firebase pode usar sessão e o usuário perde o login ao fechar o app)
+let _uidAtual=null;
 renderLoading();
 setPersistence(auth, browserLocalPersistence).catch(()=>{});
 onAuthStateChanged(auth,async user=>{
   if(user){
-    // Força refresh do token — se o usuário foi deletado no Firebase Auth, isso lança erro
+    // Se trocou de usuário, reseta state antes de carregar os novos dados
+    if(_uidAtual && _uidAtual!==user.uid){ resetState(); }
+    // Força refresh do token
     try{
-      await user.getIdToken(true); // true = força novo token, não usa cache
+      await user.getIdToken(true);
     }catch(e){
-      // Token inválido ou usuário deletado → limpa tudo e desloga
+      resetState();
       await signOut(auth);
+      _uidAtual=null;
       renderLogin();
       return;
     }
+    _uidAtual=user.uid;
     state.uid=user.uid;
     renderLoading();
     await Promise.all([loadUserData(user.uid), loadAdminConfig()]);
@@ -1019,8 +1054,8 @@ onAuthStateChanged(auth,async user=>{
     if(state.notifAtiva) setTimeout(()=>mostrarNotifAdmin(state.notifAtiva),1000);
     verificarPopupRenovacao();
   }else{
-    state.uid=null;state.registros=[];
-    if(state._unsubAgendamentos){state._unsubAgendamentos();state._unsubAgendamentos=null;}
+    resetState();
+    _uidAtual=null;
     renderLogin();
   }
 });
