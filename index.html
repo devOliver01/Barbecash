@@ -1119,6 +1119,16 @@ window.toggleUserMenu=function(){
     }),10);
   }
 };
+window.toggleAutoLoginSec=function(){
+  const novoVal=!LS.get('bc_auto_login',true);
+  LS.set('bc_auto_login',novoVal);
+  const tog=document.getElementById('sec-auto-login-tog');
+  if(tog){tog.className='toggle-box'+(novoVal?' on':'');}
+  // sync com o toggle do header se existir
+  const togH=document.getElementById('auto-login-tog');
+  if(togH){togH.className='toggle-box'+(novoVal?' on':'');}
+  showFeedback(novoVal?'Login automático ativado.':'Login automático desativado.','ok');
+};
 window.toggleAutoLogin=function(){
   const novoVal=!LS.get('bc_auto_login',true);
   LS.set('bc_auto_login',novoVal);
@@ -1600,16 +1610,6 @@ function renderConfig(){
   card.appendChild(premCard);
   frag.appendChild(card);
 
-  // Bloco Premium — botão Suporte
-  const supBtnCard=div('card');
-  supBtnCard.innerHTML=`
-    <div class="card-title">Premium</div>
-    <button onclick="window.open('https://wa.me/5527988658676?text=${encodeURIComponent('Olá! Preciso de suporte com o BarberCash Premium.')}','_blank')"
-      style="width:100%;padding:14px;background:#25D366;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">
-      <span style="font-size:20px">💬</span> Suporte via WhatsApp
-    </button>`;
-  frag.appendChild(supBtnCard);
-
   // Bloco Suporte WhatsApp
   const supCard=div('card');
   supCard.innerHTML=`
@@ -1628,11 +1628,28 @@ function renderConfig(){
   `;
   frag.appendChild(supCard);
 
-  // Segurança — sem alteração de credenciais
-  const secCard=div('card');secCard.innerHTML=`<div class="card-title">Segurança & Acesso</div>`;
+  // Segurança & Acesso — com login automático e botão sair
+  const secCard=div('card');
+  secCard.innerHTML=`<div class="card-title">Segurança & Acesso</div>`;
+
   const autoRow2=div('seguranca-opt');
-  autoRow2.innerHTML=`<div><div class="seguranca-opt-label">Login automático</div><div class="seguranca-opt-sub">Controle rápido no topo do app</div></div><span style="font-size:12px;color:var(--muted)">▲ Header</span>`;
+  autoRow2.innerHTML=`
+    <div>
+      <div class="seguranca-opt-label">Login automático</div>
+      <div class="seguranca-opt-sub">Entrar direto sem digitar senha</div>
+    </div>
+    <div class="toggle-box${LS.get('bc_auto_login',true)?' on':''}" id="sec-auto-login-tog" style="cursor:pointer;flex-shrink:0" onclick="toggleAutoLoginSec()">
+      <div class="toggle-knob"></div>
+    </div>`;
   secCard.appendChild(autoRow2);
+
+  const sairRow=div('');
+  sairRow.style.cssText='margin-top:14px';
+  sairRow.innerHTML=`
+    <button onclick="fazerLogout()" style="width:100%;padding:12px;background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.3);border-radius:10px;color:var(--red);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">
+      ⏻ Sair da conta
+    </button>`;
+  secCard.appendChild(sairRow);
   frag.appendChild(secCard);
   return frag;
 }

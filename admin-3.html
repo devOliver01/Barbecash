@@ -250,23 +250,22 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
-    <div style="background:#0f0f0f;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Credenciais de Acesso</div>
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">E-mail</div>
-        <div style="font-size:14px;color:var(--text);font-weight:500">admin@barbercash.com</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Altere no Firebase Authentication</div>
+    <div style="background:#0f0f0f;border:1px solid var(--gold-dim);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">⚠ Como acessar o painel</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px">
+        Use o <b style="color:var(--text)">e-mail e senha</b> da conta admin que você criou no
+        <b style="color:var(--text)">Firebase Authentication</b>.
       </div>
-      <div style="border-top:1px solid var(--border);padding-top:10px">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Senha</div>
-        <div style="font-size:14px;color:var(--text);font-weight:500">admin@2025</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Altere em Configurações → Conta no app</div>
+      <div style="border-top:1px solid var(--border);padding-top:10px;font-size:12px;color:var(--muted)">
+        Para criar ou redefinir a senha: acesse
+        <span style="color:var(--gold)">console.firebase.google.com</span>
+        → Authentication → Users → selecione o admin → Reset password.
       </div>
     </div>
 
     <div class="lfield">
       <label>E-mail</label>
-      <input class="inp" id="adm-email" type="email" placeholder="admin@barbercash.com" autocomplete="email"/>
+      <input class="inp" id="adm-email" type="email" placeholder="seu@email.com" autocomplete="email"/>
     </div>
     <div class="lfield">
       <label>Senha</label>
