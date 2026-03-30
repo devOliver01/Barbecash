@@ -28,8 +28,8 @@ function loadQrFallback(){
   --text:#f0ede8;--muted:#777;--muted2:#444;
   --red:#e05555;--green:#4caf78;--blue:#5b9cf6;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
-#app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;position:relative}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:auto}
+#app{display:flex;flex-direction:column;min-height:100%;max-width:480px;margin:0 auto;position:relative}
 .login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:32px 24px;gap:20px;overflow-y:auto}
 .login-logo{display:flex;flex-direction:column;align-items:center;gap:12px}
 .login-logo-icon{width:72px;height:72px;background:var(--gold);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px}
@@ -65,7 +65,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .nav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;font-family:'DM Sans',sans-serif;border-top:2px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav-btn .nav-icon{font-size:18px}
 .nav-btn.active{color:var(--gold);border-top-color:var(--gold)}
-.body{flex:1;overflow-y:auto;padding:16px;padding-bottom:80px}
+.body{padding:16px;padding-bottom:80px}
 .body::-webkit-scrollbar{display:none}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
 .card-title{font-family:'Playfair Display',serif;font-size:13px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px}
@@ -273,7 +273,7 @@ details>summary::marker{display:none}
 </head>
 <body>
 <div id="app">
-  <div id="root-content" style="height:100%;display:flex;flex-direction:column"></div>
+  <div id="root-content" style="min-height:100%;display:flex;flex-direction:column"></div>
 </div>
 <div class="feedback" id="feedback"></div>
 <div class="overlay" id="overlayConfirm" onclick="if(event.target===this)closeModal('overlayConfirm')">
@@ -739,7 +739,7 @@ function getPagConfig(){
     padrao: p.padrao||'pix',
     nomePix: p.nomePix||'Pix',
     nomeDinheiro: p.nomeDinheiro||'Dinheiro',
-    nomeCartao: (p.nomeCartao||'Cartão').replace(/^Cart[aã]o?s$/i,'Cartão'),
+    nomeCartao: (p.nomeCartao||'Cartão').replace(/cart[aã]o?s/gi,'Cartão'),
   };
 }
 async function saveRegistro(reg){
@@ -1064,7 +1064,7 @@ window.handleAuth=async function(){
 // ── APP ───────────────────────────────────────────────────────────────────────
 function renderApp(){
   document.getElementById('root-content').innerHTML=`
-    <div style="display:flex;height:100%;width:100%">
+    <div style="display:flex;flex-direction:column;width:100%">
       <nav class="nav">
         <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
         <button class="nav-btn" onclick="irTela('historico',this)"><span class="nav-icon">⏱</span>Histórico</button>
