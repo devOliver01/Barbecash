@@ -93,6 +93,24 @@ textarea.inp{resize:none;height:80px;font-size:14px}
 @keyframes popIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .fade-up{animation:fadeUp .28s ease forwards}
+/* ── CALENDÁRIO MENSAL ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-mes{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)}
+.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 14px;font-size:16px;line-height:1}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px}
+.cal-dow{text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 0}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:13px;position:relative;border:1px solid transparent;transition:all .15s;background:var(--surface)}
+.cal-day.vazio{background:transparent;border-color:transparent;cursor:default}
+.cal-day.passado{color:var(--muted2);cursor:default;background:transparent}
+.cal-day.sem-vagas{color:var(--muted2);cursor:default;background:transparent}
+.cal-day.tem-vagas{background:rgba(201,168,76,.12);border-color:var(--gold-dim);color:var(--gold-light)}
+.cal-day.tem-vagas:hover{background:rgba(201,168,76,.22);border-color:var(--gold)}
+.cal-day.selecionado{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700}
+.cal-day.hoje{box-shadow:0 0 0 1px var(--gold-dim)}
+.cal-day-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);position:absolute;bottom:3px}
+.cal-day.selecionado .cal-day-dot{background:#000}
+.slots-header{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;margin-top:4px}
+.slots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 </style>
 </head>
 <body>
@@ -183,8 +201,8 @@ async function init() {
       snap => {
         S.vagas = snap.docs.map(d=>({id:d.id,...d.data()}))
           .filter(v => v.dataHora > Date.now() && v.disponivel !== false);
-        // Se o cliente estiver escolhendo vaga, atualiza ao vivo
-        if(S.step === 2) render();
+        // Se o cliente estiver escolhendo vaga, atualiza calendário ao vivo
+        if(S.step === 2){ renderCalBook(); }
       },
       e => { console.error('vagas listener:',e); }
     );
@@ -249,40 +267,127 @@ function renderServico(){
   return frag;
 }
 
-// ── STEP 2: VAGA ─────────────────────────────────────────────────────────────
+// ── STATE CALENDÁRIO CLIENTE ──────────────────────────────────────────────────
+let _bookCalMes = new Date().getMonth();
+let _bookCalAno = new Date().getFullYear();
+let _bookDiaSel = null; // timestamp meia-noite
+
+window.navMesBook = function(dir){
+  _bookCalMes += dir;
+  if(_bookCalMes>11){_bookCalMes=0;_bookCalAno++;}
+  if(_bookCalMes<0){_bookCalMes=11;_bookCalAno--;}
+  _bookDiaSel = null;
+  renderCalBook();
+};
+
+function renderCalBook(){
+  const label = document.getElementById('book-cal-label');
+  const grid  = document.getElementById('book-cal-grid');
+  const slotsEl = document.getElementById('book-slots');
+  if(!label||!grid||!slotsEl) return;
+
+  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  label.textContent = `${meses[_bookCalMes]} ${_bookCalAno}`;
+
+  // Mapa dia → vagas disponíveis
+  const vagasPorDia = {};
+  S.vagas.forEach(v=>{
+    const d = new Date(v.dataHora);
+    if(d.getFullYear()===_bookCalAno && d.getMonth()===_bookCalMes){
+      const k = d.getDate();
+      if(!vagasPorDia[k]) vagasPorDia[k]=[];
+      vagasPorDia[k].push(v);
+    }
+  });
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const primeiroDia = new Date(_bookCalAno, _bookCalMes, 1).getDay();
+  const totalDias   = new Date(_bookCalAno, _bookCalMes+1, 0).getDate();
+
+  grid.innerHTML = ['D','S','T','Q','Q','S','S'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<primeiroDia;i++) grid.innerHTML+=`<div class="cal-day vazio"></div>`;
+
+  for(let d=1;d<=totalDias;d++){
+    const dataD = new Date(_bookCalAno, _bookCalMes, d);
+    const passado = dataD < hoje;
+    const temVagas = !passado && (vagasPorDia[d]||[]).length > 0;
+    const sel = _bookDiaSel && new Date(_bookDiaSel).getDate()===d
+                && new Date(_bookDiaSel).getMonth()===_bookCalMes
+                && new Date(_bookDiaSel).getFullYear()===_bookCalAno;
+    const isHoje = dataD.getTime()===hoje.getTime();
+
+    let cls='cal-day';
+    if(passado) cls+=' passado';
+    else if(sel) cls+=' selecionado';
+    else if(temVagas) cls+=' tem-vagas';
+    else cls+=' sem-vagas';
+    if(isHoje) cls+=' hoje';
+
+    const dot = temVagas && !sel ? `<div class="cal-day-dot"></div>` : '';
+    const el = document.createElement('div');
+    el.className = cls;
+    el.innerHTML = `${d}${dot}`;
+    if(!passado && temVagas) el.onclick = ()=>{
+      _bookDiaSel = dataD.getTime();
+      S.sel.vaga = null; // limpa seleção anterior
+      renderCalBook();
+    };
+    grid.appendChild(el);
+  }
+
+  // Slots do dia selecionado
+  if(!_bookDiaSel){
+    slotsEl.innerHTML='';
+    return;
+  }
+
+  const dSel = new Date(_bookDiaSel);
+  const dSelNum = dSel.getDate();
+  const vagasDia = (vagasPorDia[dSelNum]||[]).sort((a,b)=>a.dataHora-b.dataHora);
+  const diaFmt = dSel.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+
+  slotsEl.innerHTML = `<div class="slots-header">✂ ${diaFmt}</div>`;
+
+  if(!vagasDia.length){
+    slotsEl.innerHTML += `<div style="text-align:center;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;font-size:14px">Nenhum horário disponível neste dia</div>`;
+    return;
+  }
+
+  const sGrid = document.createElement('div');
+  sGrid.className='slots-grid';
+  vagasDia.forEach(v=>{
+    const horaStr = fmtHora(v.dataHora);
+    const sel = S.sel.vaga?.id === v.id;
+    const card = document.createElement('div');
+    card.className = `vaga-card${sel?' selected':''}`;
+    card.innerHTML = `<div class="vaga-hora">${horaStr}</div>`;
+    card.onclick = ()=>{ S.sel.vaga=v; renderCalBook(); };
+    sGrid.appendChild(card);
+  });
+  slotsEl.appendChild(sGrid);
+}
+
+// ── STEP 2: VAGA (CALENDÁRIO) ─────────────────────────────────────────────────
 function renderVaga(){
+  // Inicializa mês atual se não há seleção
+  if(!_bookDiaSel){
+    _bookCalMes = new Date().getMonth();
+    _bookCalAno = new Date().getFullYear();
+  }
+
   const frag = document.createDocumentFragment();
   frag.appendChild(stepBar(2));
 
   const sec = document.createElement('div');
-  sec.innerHTML = `<div class="section-title">📅 Vagas disponíveis</div>`;
-
-  if(!S.vagas.length){
-    sec.innerHTML += `<div class="vaga-empty">
-      <div class="vaga-empty-icon">😔</div>
-      <div style="font-weight:600;margin-bottom:6px">Nenhuma vaga disponível agora</div>
-      <div style="font-size:12px;color:var(--muted2);margin-bottom:14px">Volte em breve ou entre em contato.</div>
-      ${S.cfg.whatsapp
-        ? `<a href="https://wa.me/${(S.cfg.whatsapp||'').replace(/\D/g,'')}" target="_blank"
-            style="display:inline-block;padding:11px 24px;background:#25D366;color:#fff;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none">
-            💬 Chamar no WhatsApp</a>` : ''}
-    </div>`;
-  } else {
-    const grid = document.createElement('div');
-    grid.className='vaga-grid';
-    S.vagas.forEach(v=>{
-      const sel = S.sel.vaga?.id===v.id;
-      const card = document.createElement('div');
-      card.className = `vaga-card${sel?' selected':''}`;
-      card.innerHTML = `
-        <div class="vaga-dia">${fmtDia(v.dataHora)}</div>
-        <div class="vaga-hora">${fmtHora(v.dataHora)}</div>
-        <div class="vaga-data">${new Date(v.dataHora).toLocaleDateString('pt-BR')}</div>`;
-      card.onclick=()=>{ S.sel.vaga=v; render(); };
-      grid.appendChild(card);
-    });
-    sec.appendChild(grid);
-  }
+  sec.innerHTML = `
+    <div class="section-title">📅 Escolha o horário</div>
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="navMesBook(-1)">‹</button>
+      <div class="cal-mes" id="book-cal-label"></div>
+      <button class="cal-nav-btn" onclick="navMesBook(1)">›</button>
+    </div>
+    <div class="cal-grid" id="book-cal-grid"></div>
+    <div id="book-slots"></div>`;
   frag.appendChild(sec);
 
   const nav = document.createElement('div');
@@ -295,6 +400,10 @@ function renderVaga(){
     nav.appendChild(btn);
   }
   frag.appendChild(nav);
+
+  // Renderiza calendário após inserção no DOM
+  setTimeout(()=>renderCalBook(), 0);
+
   return frag;
 }
 

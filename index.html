@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BarberCash</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -228,6 +227,30 @@ textarea.input{resize:none;height:70px;font-size:14px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeIn .25s ease forwards}
+/* ── CALENDÁRIO MENSAL DE VAGAS ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-mes-label{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)}
+.cal-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 14px;font-size:16px;line-height:1}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:16px}
+.cal-dow{text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 0}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:13px;position:relative;border:1px solid transparent;transition:all .15s}
+.cal-day.vazio{opacity:0}
+.cal-day.passado{color:var(--muted2);cursor:default}
+.cal-day.tem-vagas{background:rgba(201,168,76,.12);border-color:var(--gold-dim);color:var(--gold-light)}
+.cal-day.tem-vagas:hover{background:rgba(201,168,76,.22);border-color:var(--gold)}
+.cal-day.selecionado{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700}
+.cal-day.hoje{box-shadow:0 0 0 1px var(--gold-dim)}
+.cal-day-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);position:absolute;bottom:3px}
+.cal-day.selecionado .cal-day-dot{background:#000}
+.cal-slots-header{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.cal-slots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.cal-slot{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+.cal-slot.ocupado{opacity:.45;cursor:default}
+.cal-slot:not(.ocupado):hover{border-color:var(--gold-dim)}
+.cal-slot-hora{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold-light)}
+.cal-slot.ocupado .cal-slot-hora{color:var(--muted)}
+.cal-slot-status{font-size:9px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.cal-slot-del{position:absolute;top:3px;right:4px;background:none;border:none;font-size:12px;cursor:pointer;color:var(--muted2);line-height:1;padding:2px}
 </style>
 </head>
 <body>
@@ -384,31 +407,56 @@ textarea.input{resize:none;height:70px;font-size:14px}
   <div class="modal">
     <div class="modal-header"><div class="modal-title">📅 Gerenciar Vagas</div><button class="modal-close" onclick="closeModal('modalVagas')">✕</button></div>
     <div class="modal-body">
-      <!-- GERADOR DE SLOTS -->
-      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Gerar horários automaticamente</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Data início</div><input class="input" id="slot-data-ini" type="date" style="padding:10px 12px;font-size:14px"/></div>
-        <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Data fim</div><input class="input" id="slot-data-fim" type="date" style="padding:10px 12px;font-size:14px"/></div>
-        <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Hora início</div><input class="input" id="slot-hora-ini" type="time" value="09:00" style="padding:10px 12px;font-size:14px"/></div>
-        <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Hora fim</div><input class="input" id="slot-hora-fim" type="time" value="18:00" style="padding:10px 12px;font-size:14px"/></div>
+      <!-- ABAS: Calendário / Gerar -->
+      <div style="display:flex;gap:6px;margin-bottom:16px" id="vagas-tab-row">
+        <button class="pag-tab active" id="vaga-tab-cal" onclick="mudarAbaVagas('cal')">📅 Calendário</button>
+        <button class="pag-tab" id="vaga-tab-gen" onclick="mudarAbaVagas('gen')">⚡ Gerar</button>
       </div>
-      <div style="margin-bottom:10px">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Intervalo entre cortes</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap" id="slot-intervalo-opts">
-          ${[30,45,60,90].map(m=>`<button class="pag-tab" data-min="${m}" onclick="selecionarIntervalo(${m},this)">${m}min</button>`).join('')}
+
+      <!-- PAINEL CALENDÁRIO -->
+      <div id="vagas-painel-cal">
+        <div class="cal-nav">
+          <button class="cal-btn" onclick="navMesVagas(-1)">‹</button>
+          <div class="cal-mes-label" id="cal-vagas-label"></div>
+          <button class="cal-btn" onclick="navMesVagas(1)">›</button>
         </div>
+        <div class="cal-grid" id="cal-vagas-grid"></div>
+        <div id="cal-vagas-slots"></div>
       </div>
-      <div style="margin-bottom:14px">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Dias da semana</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap" id="slot-dias-opts">
-          ${[['Dom',0],['Seg',1],['Ter',2],['Qua',3],['Qui',4],['Sex',5],['Sáb',6]].map(([l,d])=>`<button class="pag-tab${d>=1&&d<=6?' active':''}" data-dia="${d}" onclick="toggleDiaSemana(${d},this)">${l}</button>`).join('')}
+
+      <!-- PAINEL GERAR -->
+      <div id="vagas-painel-gen" style="display:none">
+        <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Gerar horários automaticamente</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Data início</div><input class="input" id="slot-data-ini" type="date" style="padding:10px 12px;font-size:14px"/></div>
+          <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Data fim</div><input class="input" id="slot-data-fim" type="date" style="padding:10px 12px;font-size:14px"/></div>
+          <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Hora início</div><input class="input" id="slot-hora-ini" type="time" value="09:00" style="padding:10px 12px;font-size:14px"/></div>
+          <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Hora fim</div><input class="input" id="slot-hora-fim" type="time" value="18:00" style="padding:10px 12px;font-size:14px"/></div>
         </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Intervalo entre cortes</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="slot-intervalo-opts">
+            <button class="pag-tab" data-min="30" onclick="selecionarIntervalo(30,this)">30min</button>
+            <button class="pag-tab" data-min="45" onclick="selecionarIntervalo(45,this)">45min</button>
+            <button class="pag-tab active" data-min="60" onclick="selecionarIntervalo(60,this)">60min</button>
+            <button class="pag-tab" data-min="90" onclick="selecionarIntervalo(90,this)">90min</button>
+          </div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Dias da semana</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="slot-dias-opts">
+            <button class="pag-tab" data-dia="0" onclick="toggleDiaSemana(0,this)">Dom</button>
+            <button class="pag-tab active" data-dia="1" onclick="toggleDiaSemana(1,this)">Seg</button>
+            <button class="pag-tab active" data-dia="2" onclick="toggleDiaSemana(2,this)">Ter</button>
+            <button class="pag-tab active" data-dia="3" onclick="toggleDiaSemana(3,this)">Qua</button>
+            <button class="pag-tab active" data-dia="4" onclick="toggleDiaSemana(4,this)">Qui</button>
+            <button class="pag-tab active" data-dia="5" onclick="toggleDiaSemana(5,this)">Sex</button>
+            <button class="pag-tab active" data-dia="6" onclick="toggleDiaSemana(6,this)">Sáb</button>
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-bottom:6px" onclick="gerarSlots()">⚡ Gerar horários</button>
+        <div id="slot-preview" style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px"></div>
       </div>
-      <button class="btn-primary" style="margin-bottom:6px" onclick="gerarSlots()">⚡ Gerar horários</button>
-      <div id="slot-preview" style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px"></div>
-      <!-- LISTA DE VAGAS CADASTRADAS -->
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;margin-top:4px">Vagas cadastradas</div>
-      <div id="vagas-list-modal"></div>
     </div>
   </div>
 </div>
@@ -1685,62 +1733,143 @@ window.gerarSlots = async function(){
     }catch(e){console.error(e);}
   }
   preview.innerHTML=`<span style="color:var(--green)">✓ ${ok} horário(s) criado(s)!</span>`;
-  renderListaVagasModal();
+  renderCalVagas();
 };
+
+// ── CALENDÁRIO MENSAL DE VAGAS (barbeiro) ──────────────────────────────────────
+let _calVagasMes = new Date().getMonth();
+let _calVagasAno = new Date().getFullYear();
+let _calVagasDiaSel = null; // timestamp meia-noite do dia selecionado
+let _vagasAbaAtual = 'cal';
+
+window.mudarAbaVagas = function(aba){
+  _vagasAbaAtual = aba;
+  document.getElementById('vaga-tab-cal').classList.toggle('active', aba==='cal');
+  document.getElementById('vaga-tab-gen').classList.toggle('active', aba==='gen');
+  document.getElementById('vagas-painel-cal').style.display = aba==='cal' ? '' : 'none';
+  document.getElementById('vagas-painel-gen').style.display = aba==='gen' ? '' : 'none';
+};
+
+window.navMesVagas = function(dir){
+  _calVagasMes += dir;
+  if(_calVagasMes > 11){ _calVagasMes=0; _calVagasAno++; }
+  if(_calVagasMes < 0){ _calVagasMes=11; _calVagasAno--; }
+  _calVagasDiaSel = null;
+  renderCalVagas();
+};
+
+function renderCalVagas(){
+  const label = document.getElementById('cal-vagas-label');
+  const grid  = document.getElementById('cal-vagas-grid');
+  const slots = document.getElementById('cal-vagas-slots');
+  if(!label||!grid||!slots) return;
+
+  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  label.textContent = `${meses[_calVagasMes]} ${_calVagasAno}`;
+
+  // Constrói mapa dia→vagas
+  const vagasPorDia = {};
+  state.vagas.forEach(v=>{
+    const d = new Date(v.dataHora);
+    if(d.getFullYear()===_calVagasAno && d.getMonth()===_calVagasMes){
+      const k = d.getDate();
+      if(!vagasPorDia[k]) vagasPorDia[k]=[];
+      vagasPorDia[k].push(v);
+    }
+  });
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const primeiroDia = new Date(_calVagasAno, _calVagasMes, 1).getDay();
+  const totalDias   = new Date(_calVagasAno, _calVagasMes+1, 0).getDate();
+
+  // Cabeçalho dias semana
+  grid.innerHTML = ['D','S','T','Q','Q','S','S'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+
+  // Dias vazios antes do primeiro
+  for(let i=0;i<primeiroDia;i++) grid.innerHTML += `<div class="cal-day vazio"></div>`;
+
+  for(let d=1;d<=totalDias;d++){
+    const dataD = new Date(_calVagasAno, _calVagasMes, d);
+    const passado = dataD < hoje;
+    const temVagas = !!vagasPorDia[d];
+    const sel = _calVagasDiaSel && new Date(_calVagasDiaSel).getDate()===d
+                && new Date(_calVagasDiaSel).getMonth()===_calVagasMes
+                && new Date(_calVagasDiaSel).getFullYear()===_calVagasAno;
+    const isHoje = dataD.getTime()===hoje.getTime();
+
+    let cls = 'cal-day';
+    if(passado) cls+=' passado';
+    else if(sel) cls+=' selecionado';
+    else if(temVagas) cls+=' tem-vagas';
+    if(isHoje) cls+=' hoje';
+
+    const dot = temVagas && !sel ? `<div class="cal-day-dot"></div>` : '';
+    const el = document.createElement('div');
+    el.className = cls;
+    el.innerHTML = `${d}${dot}`;
+    if(!passado) el.onclick = ()=>{ _calVagasDiaSel = dataD.getTime(); renderCalVagas(); };
+    grid.appendChild(el);
+  }
+
+  // Slots do dia selecionado
+  if(!_calVagasDiaSel){ slots.innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0">Toque em um dia para ver os horários</div>'; return; }
+  const dSel = new Date(_calVagasDiaSel);
+  const dSelNum = dSel.getDate();
+  const vagasDia = (vagasPorDia[dSelNum]||[]).sort((a,b)=>a.dataHora-b.dataHora);
+
+  const diaFmt = dSel.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  slots.innerHTML = `<div class="cal-slots-header">${diaFmt} · ${vagasDia.length} horário(s)</div>`;
+
+  if(!vagasDia.length){
+    slots.innerHTML += `<div style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;background:var(--surface2);border-radius:10px">Nenhum horário neste dia</div>`;
+    return;
+  }
+
+  const slotGrid = div('cal-slots-grid');
+  vagasDia.forEach(v=>{
+    const horaStr = new Date(v.dataHora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const ocupado = v.disponivel===false;
+    const slotEl = div('cal-slot'+(ocupado?' ocupado':''));
+    slotEl.innerHTML = `
+      <button class="cal-slot-del" title="Remover" onclick="excluirVaga('${v.id}')">✕</button>
+      <div class="cal-slot-hora">${horaStr}</div>
+      <div class="cal-slot-status">${ocupado?(v.agendadoPor||'Ocupado'):'Livre'}</div>`;
+    slotGrid.appendChild(slotEl);
+  });
+  slots.appendChild(slotGrid);
+}
+window.renderCalVagas = renderCalVagas;
 
 window.abrirModalVagas = async function(){
   await carregarVagas();
-  // Default: hoje até +7 dias
+  _calVagasMes = new Date().getMonth();
+  _calVagasAno = new Date().getFullYear();
+  _calVagasDiaSel = null;
+  _vagasAbaAtual = 'cal';
+  // Default datas para o gerador
   const hoje = new Date().toISOString().slice(0,10);
   const proxSem = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
   document.getElementById('slot-data-ini').value = hoje;
   document.getElementById('slot-data-fim').value = proxSem;
   document.getElementById('slot-preview').textContent='';
+  document.getElementById('vaga-tab-cal').classList.add('active');
+  document.getElementById('vaga-tab-gen').classList.remove('active');
+  document.getElementById('vagas-painel-cal').style.display = '';
+  document.getElementById('vagas-painel-gen').style.display = 'none';
   // Marca intervalo padrão 60min
   document.querySelectorAll('#slot-intervalo-opts .pag-tab').forEach(b=>{
     b.classList.toggle('active', parseInt(b.dataset.min)===_slotIntervalo);
   });
-  // Marca dias padrão
   document.querySelectorAll('#slot-dias-opts .pag-tab').forEach(b=>{
     b.classList.toggle('active', _slotDias.has(parseInt(b.dataset.dia)));
   });
-  renderListaVagasModal();
   openModal('modalVagas');
+  setTimeout(()=>renderCalVagas(), 50);
 };
 
 function renderListaVagasModal(){
-  const el = document.getElementById('vagas-list-modal');
-  if(!el) return;
-  el.innerHTML='';
-  const agora = Date.now();
-  const futuras = [...state.vagas].filter(v=>v.dataHora>agora-3600000).sort((a,b)=>a.dataHora-b.dataHora);
-  if(!futuras.length){
-    el.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px">Nenhuma vaga futura.</div>';
-    return;
-  }
-  // Agrupa por data
-  const porData={};
-  futuras.forEach(v=>{
-    const d=new Date(v.dataHora).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
-    if(!porData[d]) porData[d]=[];
-    porData[d].push(v);
-  });
-  Object.entries(porData).forEach(([data,vagas])=>{
-    const header=div('');header.style.cssText='font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)';
-    header.textContent=data;el.appendChild(header);
-    vagas.forEach(v=>{
-      const item=div('vaga-item');
-      const horaStr=new Date(v.dataHora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      const ocupada=v.disponivel===false;
-      item.innerHTML=`
-        <div class="vaga-item-info">
-          <div class="vaga-item-hora">${horaStr}</div>
-        </div>
-        <span class="vaga-item-status${ocupada?' ocupada':''}">${ocupada?(v.agendadoPor||'Ocupada'):'Livre'}</span>
-        <button class="btn-icone" style="color:var(--red);font-size:16px" onclick="excluirVaga('${v.id}')">🗑</button>`;
-      el.appendChild(item);
-    });
-  });
+  // Atualiza o calendário quando vagas mudam
+  renderCalVagas();
 }
 window.renderListaVagasModal=renderListaVagasModal;
 
@@ -1752,7 +1881,7 @@ window.excluirVaga = function(id){
       state.vagas=state.vagas.filter(v=>v.id!==id);
       closeModal('overlayConfirm');
       showFeedback('Vaga removida.','ok');
-      renderListaVagasModal();
+      renderCalVagas();
     }catch(e){console.error(e);showFeedback('Erro ao remover.','erro');}
   };
   openModal('overlayConfirm');
