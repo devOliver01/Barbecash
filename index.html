@@ -601,20 +601,66 @@ let state={
 };
 
 // ── FIRESTORE ─────────────────────────────────────────────────────────────────
+function salvarCacheRegistros(uid,registros){
+  try{LS.set('bc_regs_cache_'+uid,registros);}catch(e){}
+}
+function carregarCacheRegistros(uid){
+  return LS.get('bc_regs_cache_'+uid,[]);
+}
+function salvarCacheConfig(uid,cfg){
+  try{LS.set('bc_cfg_cache_'+uid,cfg);}catch(e){}
+}
+function carregarCacheConfig(uid){
+  return LS.get('bc_cfg_cache_'+uid,null);
+}
+
 async function loadUserData(uid){
+  // Carrega cache local imediatamente para evitar tela vazia
+  const cacheRegs=carregarCacheRegistros(uid);
+  if(cacheRegs.length>0) state.registros=cacheRegs;
+  const cacheCfg=carregarCacheConfig(uid);
+  if(cacheCfg){
+    if(cacheCfg.cortesLista)state.cortesLista=cacheCfg.cortesLista;
+    if(cacheCfg.barbeiros)state.barbeiros=cacheCfg.barbeiros;
+    if(cacheCfg.barbeiroAtual)state.barbeiroAtual=cacheCfg.barbeiroAtual;
+    if(cacheCfg.metas)state.metas=cacheCfg.metas;
+    if(cacheCfg.nomeUsuario)state.nomeUsuario=cacheCfg.nomeUsuario;
+    if(cacheCfg.chavePix)state.chavePix=cacheCfg.chavePix;
+    if(cacheCfg.chavePixTipo)state.chavePixTipo=cacheCfg.chavePixTipo;
+    if(cacheCfg.plano)state.plano=cacheCfg.plano;
+  }
   setSyncing(true);
   try{
     const cfgDoc=await getDoc(doc(db,'users',uid,'config','main'));
-    if(cfgDoc.exists()){const d=cfgDoc.data();if(d.cortesLista)state.cortesLista=d.cortesLista;if(d.barbeiros)state.barbeiros=d.barbeiros;if(d.barbeiroAtual)state.barbeiroAtual=d.barbeiroAtual;if(d.metas)state.metas=d.metas;if(d.nomeUsuario)state.nomeUsuario=d.nomeUsuario;if(d.chavePix)state.chavePix=d.chavePix;if(d.chavePixTipo)state.chavePixTipo=d.chavePixTipo;if(d.plano)state.plano=d.plano;}
+    if(cfgDoc.exists()){
+      const d=cfgDoc.data();
+      if(d.cortesLista)state.cortesLista=d.cortesLista;
+      if(d.barbeiros)state.barbeiros=d.barbeiros;
+      if(d.barbeiroAtual)state.barbeiroAtual=d.barbeiroAtual;
+      if(d.metas)state.metas=d.metas;
+      if(d.nomeUsuario)state.nomeUsuario=d.nomeUsuario;
+      if(d.chavePix)state.chavePix=d.chavePix;
+      if(d.chavePixTipo)state.chavePixTipo=d.chavePixTipo;
+      if(d.plano)state.plano=d.plano;
+      salvarCacheConfig(uid,d);
+    }
     const snap=await getDocs(query(collection(db,'users',uid,'registros'),orderBy('createdAt','desc')));
     state.registros=snap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){console.error(e);}
+    salvarCacheRegistros(uid,state.registros);
+  }catch(e){
+    console.error('loadUserData erro (usando cache local):', e);
+    // Mantém o cache já carregado acima — registros não são perdidos
+  }
   setSyncing(false);
 }
 async function saveConfig(){
   if(!state.uid)return;setSyncing(true);
-  try{await setDoc(doc(db,'users',state.uid,'config','main'),{cortesLista:state.cortesLista,barbeiros:state.barbeiros,barbeiroAtual:state.barbeiroAtual,metas:state.metas,nomeUsuario:state.nomeUsuario,chavePix:state.chavePix,chavePixTipo:state.chavePixTipo,plano:state.plano});}
-  catch(e){console.error(e);}setSyncing(false);
+  const cfg={cortesLista:state.cortesLista,barbeiros:state.barbeiros,barbeiroAtual:state.barbeiroAtual,metas:state.metas,nomeUsuario:state.nomeUsuario,chavePix:state.chavePix,chavePixTipo:state.chavePixTipo,plano:state.plano};
+  try{
+    await setDoc(doc(db,'users',state.uid,'config','main'),cfg);
+    salvarCacheConfig(state.uid,cfg);
+  }catch(e){console.error(e);}
+  setSyncing(false);
 }
 
 // ── ADMIN CONFIG ──────────────────────────────────────────────────────────────
@@ -668,12 +714,21 @@ function getPagConfig(){
 }
 async function saveRegistro(reg){
   if(!state.uid)return;setSyncing(true);
-  try{const ref=await addDoc(collection(db,'users',state.uid,'registros'),{...reg,createdAt:Date.now()});const i=state.registros.findIndex(r=>r._tempId===reg._tempId);if(i>=0)state.registros[i].id=ref.id;}
-  catch(e){console.error(e);}setSyncing(false);
+  try{
+    const ref=await addDoc(collection(db,'users',state.uid,'registros'),{...reg,createdAt:Date.now()});
+    const i=state.registros.findIndex(r=>r._tempId===reg._tempId);
+    if(i>=0) state.registros[i].id=ref.id;
+    salvarCacheRegistros(state.uid,state.registros);
+  }catch(e){console.error(e);}
+  setSyncing(false);
 }
 async function deleteRegistro(id){
   if(!state.uid)return;setSyncing(true);
-  try{await deleteDoc(doc(db,'users',state.uid,'registros',id));}catch(e){console.error(e);}setSyncing(false);
+  try{
+    await deleteDoc(doc(db,'users',state.uid,'registros',id));
+    salvarCacheRegistros(state.uid,state.registros);
+  }catch(e){console.error(e);}
+  setSyncing(false);
 }
 function setSyncing(v){const dot=document.getElementById('sync-dot');if(dot)dot.className='sync-dot'+(v?' syncing':'');}
 
