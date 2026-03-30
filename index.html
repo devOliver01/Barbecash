@@ -268,6 +268,13 @@ details>summary::marker{display:none}
 .cal-slot-status{font-size:9px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
 .cal-slot-del{position:absolute;top:3px;right:4px;background:none;border:none;font-size:12px;cursor:pointer;color:var(--muted2);line-height:1;padding:2px}
 
+.app-wrapper{
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  width:100%;
+}
+
 /* ══════════════════════════════════════════════════════
    RESPONSIVO — Tablet (≥768px) e Desktop (≥1024px)
    ══════════════════════════════════════════════════════ */
@@ -278,6 +285,11 @@ details>summary::marker{display:none}
 
   #app{
     max-width:100%;
+    flex-direction:row;
+    height:100vh;
+  }
+
+  .app-wrapper{
     flex-direction:row;
     height:100vh;
   }
@@ -846,7 +858,7 @@ function getPagConfig(){
     padrao: p.padrao||'pix',
     nomePix: p.nomePix||'Pix',
     nomeDinheiro: p.nomeDinheiro||'Dinheiro',
-    nomeCartao: p.nomeCartao||'Cartão',
+    nomeCartao: (p.nomeCartao||'Cartão').replace(/^Cartões$/i,'Cartão'),
   };
 }
 async function saveRegistro(reg){
@@ -1171,7 +1183,7 @@ window.handleAuth=async function(){
 // ── APP ───────────────────────────────────────────────────────────────────────
 function renderApp(){
   document.getElementById('root-content').innerHTML=`
-    <div style="display:flex;height:100%;width:100%">
+    <div class="app-wrapper">
       <nav class="nav">
         <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
         <button class="nav-btn" onclick="irTela('historico',this)"><span class="nav-icon">⏱</span>Histórico</button>
@@ -1207,12 +1219,7 @@ function renderApp(){
         </div>
       </div>
       <div class="body" id="body-content"></div>
-      <nav class="nav">
-        <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
-        <button class="nav-btn" onclick="irTela('historico',this)"><span class="nav-icon">⏱</span>Histórico</button>
-        <button class="nav-btn" onclick="irTela('relatorio',this)"><span class="nav-icon">📊</span>Relatório</button>
-        <button class="nav-btn" onclick="irTela('config',this)"><span class="nav-icon">⚙️</span>Config</button>
-      </nav>
+      </div>
     </div>`;
   render();
 }
@@ -1385,7 +1392,7 @@ function renderRegistrar(){
   ].filter(Boolean).map(p=>p.length===3?[p[2],p[1]]:[p[0],p[1]]);
   if(!pagsDisponiveis.find(p=>p[0]===state.pagamento)) state.pagamento=pagCfg.padrao;
   pagsDisponiveis.forEach(([k,l])=>{
-    const btn=document.createElement('button');btn.className='pag-tab'+(state.pagamento===k?' active':'');btn.textContent=l;
+    const btn=document.createElement('button');btn.className='pag-tab'+(state.pagamento===k?' active':'');btn.innerHTML=l;
     btn.onclick=()=>{state.pagamento=k;pagTabs.querySelectorAll('.pag-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderQrPix();salvarRascunho();};pagTabs.appendChild(btn);
   });
   fieldPag.appendChild(pagTabs);
@@ -2169,7 +2176,7 @@ function abrirModalRegAgendamento(ag){
   pags.forEach(([k,l])=>{
     const btn=document.createElement('button');
     btn.className='pag-tab'+(k===pagAtual?' active':'');
-    btn.textContent=l;
+    btn.innerHTML=l;
     btn.onclick=()=>{pagAtual=k;tabsEl.querySelectorAll('.pag-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');tabsEl._pag=k;};
     tabsEl.appendChild(btn);
   });
