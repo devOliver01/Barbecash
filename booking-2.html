@@ -10,8 +10,24 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#080808;--surface:#111;--surface2:#1a1a1a;--border:#2a2a2a;--border2:#333;--gold:#c9a84c;--gold-light:#e8c870;--gold-dim:#7a6230;--text:#f0ede8;--muted:#777;--muted2:#444;--red:#e05555;--green:#4caf78;}
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-body{padding-bottom:60px}
+body{padding-bottom:60px;overflow-y:auto}
 #app{max-width:480px;margin:0 auto;padding:0 16px}
+@media(min-width:768px){
+  html,body{height:100%}
+  body{padding-bottom:0;display:flex;align-items:stretch;justify-content:center;background:#050505}
+  #app{max-width:640px;width:100%;padding:0 40px 60px;border-left:1px solid var(--border);border-right:1px solid var(--border);min-height:100vh;background:var(--bg)}
+  .hero{padding:48px 0 32px}
+  .hero-icon{width:80px;height:80px;font-size:40px;border-radius:22px}
+  .hero-title{font-size:36px}
+  .btn-gold{font-size:16px;padding:18px}
+  .slots-grid{grid-template-columns:repeat(4,1fr)}
+  .inp{font-size:16px}
+  .cal-grid{gap:6px}
+  .cal-day{font-size:14px}
+  .servico-card{padding:16px 20px}
+  .servico-nome{font-size:16px}
+  .servico-preco-val{font-size:19px}
+}
 /* HERO */
 .hero{text-align:center;padding:28px 0 20px}
 .hero-icon{width:64px;height:64px;background:var(--gold);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px}
@@ -177,22 +193,54 @@ async function init() {
       `<span><span class="live-dot"></span>Vagas em tempo real</span>${end?`<span style="color:var(--muted2)">·</span><span>${end}</span>`:''}`;
   } catch(e){ console.error('cfg:',e); }
 
-  // 2. Serviços — tenta cortesPublicos, senão pega do primeiro user
-  try {
-    if(S.cfg.cortesPublicos?.length){
-      S.servicos = S.cfg.cortesPublicos;
-    } else {
-      const users = await getDocs(collection(db,'users'));
-      for(const u of users.docs){
-        const c = await getDoc(doc(db,'users',u.id,'config','main'));
-        if(c.exists() && c.data().cortesLista?.length){ S.servicos=c.data().cortesLista; break; }
+  // 2. Serviços — listener em tempo real na config do admin e nos users
+  async function carregarServicos(){
+    try {
+      if(S.cfg.cortesPublicos?.length){
+        S.servicos = S.cfg.cortesPublicos;
+      } else {
+        const users = await getDocs(collection(db,'users'));
+        for(const u of users.docs){
+          const c = await getDoc(doc(db,'users',u.id,'config','main'));
+          if(c.exists() && c.data().cortesLista?.length){ S.servicos=c.data().cortesLista; break; }
+        }
       }
+    } catch(e){ console.error('servicos:',e); }
+    if(!S.servicos.length){
+      S.servicos=[{nome:'Corte Simples',preco:35},{nome:'Degradê',preco:45},{nome:'Barba',preco:30},{nome:'Corte + Barba',preco:70}];
     }
-  } catch(e){ console.error('servicos:',e); }
-
-  if(!S.servicos.length){
-    S.servicos=[{nome:'Corte Simples',preco:35},{nome:'Degradê',preco:45},{nome:'Barba',preco:30},{nome:'Corte + Barba',preco:70}];
+    if(S.step===1) render();
   }
+  carregarServicos();
+
+  // Listener tempo real no admin/config para atualizar cortes automaticamente
+  try {
+    onSnapshot(doc(db,'admin','config'), snap => {
+      if(!snap.exists()) return;
+      const d = snap.data();
+      if(d.cortesPublicos?.length){
+        S.servicos = d.cortesPublicos;
+        if(S.step===1) render();
+      }
+    });
+  } catch(e){ console.error('cfg listener:',e); }
+
+  // Listener tempo real nos users para cortes (fallback)
+  try {
+    const users2 = await getDocs(collection(db,'users'));
+    for(const u of users2.docs){
+      onSnapshot(doc(db,'users',u.id,'config','main'), snap => {
+        if(!snap.exists()) return;
+        if(S.cfg.cortesPublicos?.length) return; // admin tem prioridade
+        const d = snap.data();
+        if(d.cortesLista?.length){
+          S.servicos = d.cortesLista;
+          if(S.step===1) render();
+        }
+      });
+      break; // só primeiro user
+    }
+  } catch(e){ console.error('user cfg listener:',e); }
 
   // 3. Listener tempo real nas vagas
   try {
