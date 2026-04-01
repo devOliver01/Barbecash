@@ -164,7 +164,8 @@ const S = {
   vagas: [],
   cfg: {},
   sel: { servico:null, vaga:null, nome:'', wpp:'', obs:'' },
-  erroConfirm: ''
+  erroConfirm: '',
+  uidBarbeiro: null
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -181,10 +182,29 @@ const fmtWpp  = n  => { const d=n.replace(/\D/g,''); return d.length===11?`(${d.
 
 // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────────
 async function init() {
-  // 1. Config do admin
+  // Lê o uid da URL: booking.html?uid=XXXX
+  const urlParams = new URLSearchParams(window.location.search);
+  S.uidBarbeiro = urlParams.get('uid') || null;
+
+  // 1. Config do admin e do barbeiro específico
   try {
     const snap = await getDoc(doc(db,'admin','config'));
     S.cfg = snap.exists() ? snap.data() : {};
+
+    // Se tem uid, tenta carregar config do barbeiro específico
+    if(S.uidBarbeiro){
+      try {
+        const cfgUser = await getDoc(doc(db,'users',S.uidBarbeiro,'config','main'));
+        if(cfgUser.exists()){
+          const d = cfgUser.data();
+          if(d.nomeBarbearia) S.cfg.nomeBarbearia = d.nomeBarbearia;
+          if(d.enderecoBarbearia) S.cfg.enderecoBarbearia = d.enderecoBarbearia;
+          if(d.whatsapp) S.cfg.whatsapp = d.whatsapp;
+          if(d.nomeUsuario && !S.cfg.nomeBarbearia) S.cfg.nomeBarbearia = d.nomeUsuario;
+        }
+      } catch(e2){ console.warn('cfg user:',e2); }
+    }
+
     const nome = S.cfg.nomeBarbearia || 'Barbearia';
     document.getElementById('hero-title').textContent = nome;
     document.title = `Agendar · ${nome}`;
@@ -196,6 +216,14 @@ async function init() {
   // 2. Serviços — listener em tempo real na config do admin e nos users
   async function carregarServicos(){
     try {
+      // Se tem uid específico do barbeiro, carrega diretamente dele
+      if(S.uidBarbeiro){
+        const cfgUser = await getDoc(doc(db,'users',S.uidBarbeiro,'config','main'));
+        if(cfgUser.exists() && cfgUser.data().cortesLista?.length){
+          S.servicos = cfgUser.data().cortesLista;
+          return;
+        }
+      }
       if(S.cfg.cortesPublicos?.length){
         S.servicos = S.cfg.cortesPublicos;
       } else {
@@ -225,20 +253,32 @@ async function init() {
     });
   } catch(e){ console.error('cfg listener:',e); }
 
-  // Listener tempo real nos users para cortes (fallback)
+  // Listener tempo real no user específico (ou primeiro user como fallback)
   try {
-    const users2 = await getDocs(collection(db,'users'));
-    for(const u of users2.docs){
-      onSnapshot(doc(db,'users',u.id,'config','main'), snap => {
+    const uidAlvo = S.uidBarbeiro;
+    if(uidAlvo){
+      onSnapshot(doc(db,'users',uidAlvo,'config','main'), snap => {
         if(!snap.exists()) return;
-        if(S.cfg.cortesPublicos?.length) return; // admin tem prioridade
         const d = snap.data();
         if(d.cortesLista?.length){
           S.servicos = d.cortesLista;
           if(S.step===1) render();
         }
       });
-      break; // só primeiro user
+    } else {
+      const users2 = await getDocs(collection(db,'users'));
+      for(const u of users2.docs){
+        onSnapshot(doc(db,'users',u.id,'config','main'), snap => {
+          if(!snap.exists()) return;
+          if(S.cfg.cortesPublicos?.length) return;
+          const d = snap.data();
+          if(d.cortesLista?.length){
+            S.servicos = d.cortesLista;
+            if(S.step===1) render();
+          }
+        });
+        break;
+      }
     }
   } catch(e){ console.error('user cfg listener:',e); }
 
@@ -248,7 +288,8 @@ async function init() {
       query(collection(db,'vagas'), orderBy('dataHora','asc')),
       snap => {
         S.vagas = snap.docs.map(d=>({id:d.id,...d.data()}))
-          .filter(v => v.dataHora > Date.now() && v.disponivel !== false);
+          .filter(v => v.dataHora > Date.now() && v.disponivel !== false)
+          .filter(v => !S.uidBarbeiro || !v.uid || v.uid === S.uidBarbeiro);
         // Se o cliente estiver escolhendo vaga, atualiza calendário ao vivo
         if(S.step === 2){ renderCalBook(); }
       },
@@ -594,6 +635,7 @@ async function confirmar(){
       vagaId:   vaga.id,
       atendido: false,
       origem:   'booking',
+      uidBarbeiro: S.uidBarbeiro||null,
       criadoEm: Date.now()
     });
 

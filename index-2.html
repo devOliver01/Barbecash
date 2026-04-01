@@ -29,12 +29,14 @@ function loadQrFallback(){
   --red:#e05555;--green:#4caf78;--blue:#5b9cf6;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:auto}
+/* mobile: coluna centralizada */
 #app{display:flex;flex-direction:column;min-height:100%;max-width:480px;margin:0 auto;position:relative}
+/* desktop: linha, tela toda */
 @media(min-width:768px){
-  html,body{height:auto;min-height:100vh;overflow-x:hidden}
-  #app{max-width:100%;width:100%;margin:0;flex-direction:row;align-items:stretch;min-height:100vh}
+  html,body{height:100vh;overflow:hidden}
+  #app{max-width:100vw;width:100vw;margin:0;flex-direction:row;align-items:stretch;height:100vh;overflow:hidden}
 }
-.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:32px 24px;gap:20px;overflow-y:auto}@media(min-width:768px){.login-screen{min-height:100vh}.login-card{max-width:400px;width:100%}}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:32px 24px;gap:20px;overflow-y:auto}@media(min-width:768px){.login-screen{height:100vh;overflow-y:auto}.login-card{max-width:420px;width:100%}}
 .login-logo{display:flex;flex-direction:column;align-items:center;gap:12px}
 .login-logo-icon{width:72px;height:72px;background:var(--gold);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px}
 .login-title{font-family:'Playfair Display',serif;font-size:32px;color:var(--gold);letter-spacing:2px}
@@ -67,13 +69,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .user-badge span{color:var(--gold);font-weight:500}
 .nav{display:flex;background:var(--surface);border-top:1px solid var(--border);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(min-width:768px){
-  .nav{position:sticky;top:0;left:0;width:220px;min-width:220px;height:100vh;max-width:220px;transform:none;flex-direction:column;border-top:none;border-right:1px solid var(--border);padding:0 0 24px;justify-content:flex-start;gap:2px;overflow-y:auto;flex-shrink:0;align-self:flex-start}
+  .nav{position:fixed;top:0;left:0;width:220px;min-width:220px;height:100vh;max-width:220px;transform:none;flex-direction:column;border-top:none;border-right:1px solid var(--border);padding:0 0 24px;justify-content:flex-start;gap:2px;overflow-y:auto;flex-shrink:0;z-index:100}
   .nav-btn{padding:13px 22px;font-size:13px;border-top:none;border-left:3px solid transparent;border-radius:0 10px 10px 0;flex-direction:row;gap:12px;align-items:center;justify-content:flex-start;width:100%}
   .nav-btn .nav-icon{font-size:20px;flex-shrink:0}
   .nav-btn.active{border-top-color:transparent;border-left-color:var(--gold);background:rgba(201,168,76,.08);color:var(--gold)}
-  .main-area{flex:1;display:flex;flex-direction:column;min-height:100vh;overflow-y:auto;min-width:0}
-  .header{position:sticky;top:0;z-index:50}
-  .body{padding:28px 32px;padding-bottom:48px}
+  .main-area{margin-left:220px;flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;min-width:0}
+  .header{flex-shrink:0;position:sticky;top:0;z-index:50}
+  .body{flex:1;overflow-y:auto;padding:28px 40px 48px}
 }
 .nav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;font-family:'DM Sans',sans-serif;border-top:2px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav-btn .nav-icon{font-size:18px}
@@ -999,7 +1001,7 @@ function renderLoading(){
 
 function renderLogin(successMsg=''){
   document.getElementById('root-content').innerHTML=`
-    <div class="login-screen">
+    <div class="login-screen" style="width:100%">
       <div class="login-logo">
         <div class="login-logo-icon">✂</div>
         <div class="login-title">BarberCash</div>
@@ -1091,7 +1093,7 @@ window.handleAuth=async function(){
 // ── APP ───────────────────────────────────────────────────────────────────────
 function renderApp(){
   document.getElementById('root-content').innerHTML=`
-    <div style="display:flex;flex-direction:row;width:100%;min-height:100vh">
+    <div style="display:flex;flex-direction:row;width:100%;height:100%">
       <nav class="nav">
         <div class="nav-desktop-logo">✂ <span>BarberCash</span></div>
         <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
@@ -1602,6 +1604,73 @@ function renderConfig(){
     row.innerHTML=`<div style="width:36px;height:36px;background:var(--surface2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${item.icon}</div><div style="flex:1"><div style="font-size:15px${item.danger?';color:var(--red)':''}">${item.label}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${item.sub}</div></div><div style="color:var(--muted)">›</div>`;
     row.onclick=item.fn;card.appendChild(row);
   });
+
+  // ── CARD LINK DO AGENDAMENTO ──
+  const linkCard = div('card');
+  linkCard.innerHTML = `<div class="card-title">🔗 Link de Agendamento</div>`;
+
+  const bookingUrl = (() => {
+    const base = window.location.href.replace('index.html','').replace(/\?.*$/,'').replace(/#.*$/,'');
+    return `${base}booking.html?uid=${state.uid}`;
+  })();
+
+  const linkBox = div('');
+  linkBox.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;word-break:break-all;font-size:12px;color:var(--muted);line-height:1.6';
+  linkBox.textContent = bookingUrl;
+  linkCard.appendChild(linkBox);
+
+  const linkBtns = div('');
+  linkBtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+
+  const btnCopiar = document.createElement('button');
+  btnCopiar.style.cssText = 'flex:1;padding:11px;background:var(--gold);border:none;border-radius:10px;color:#000;font-size:13px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+  btnCopiar.innerHTML = '📋 Copiar link';
+  btnCopiar.onclick = () => {
+    navigator.clipboard.writeText(bookingUrl).then(()=>showFeedback('Link copiado!','ok')).catch(()=>{
+      const el=document.createElement('textarea');el.value=bookingUrl;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove();showFeedback('Link copiado!','ok');
+    });
+  };
+
+  const btnWpp = document.createElement('button');
+  btnWpp.style.cssText = 'flex:1;padding:11px;background:#25D366;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+  btnWpp.innerHTML = '💬 Compartilhar';
+  btnWpp.onclick = () => {
+    const msg = `Olá! Agende seu horário na barbearia pelo link:\n${bookingUrl}`;
+    if(navigator.share){ navigator.share({title:'Agendamento',text:msg,url:bookingUrl}).catch(()=>{}); }
+    else { window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank'); }
+  };
+
+  // QR Code do link
+  const btnQr = document.createElement('button');
+  btnQr.style.cssText = 'padding:11px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+  btnQr.innerHTML = '📷 QR';
+  btnQr.onclick = () => {
+    const qrDiv = document.getElementById('booking-qr-preview');
+    if(!qrDiv) return;
+    if(qrDiv.style.display === 'none' || !qrDiv.style.display){
+      qrDiv.style.display = 'block';
+      qrDiv.innerHTML = '<div style="display:inline-block;border-radius:12px;background:#fff;padding:12px" id="booking-qr-box"></div><div style="font-size:11px;color:var(--muted);margin-top:8px">Aponte a câmera do celular para compartilhar</div>';
+      try{ gerarQR(document.getElementById('booking-qr-box'), bookingUrl, 160); }catch(e){ qrDiv.innerHTML = bookingUrl; }
+    } else {
+      qrDiv.style.display = 'none';
+    }
+  };
+
+  linkBtns.appendChild(btnCopiar);
+  linkBtns.appendChild(btnWpp);
+  linkBtns.appendChild(btnQr);
+  linkCard.appendChild(linkBtns);
+
+  const qrPreview = div('');
+  qrPreview.id = 'booking-qr-preview';
+  qrPreview.style.cssText = 'display:none;margin-top:14px;text-align:center';
+  linkCard.appendChild(qrPreview);
+
+  const linkInfo = div('');
+  linkInfo.style.cssText = 'margin-top:10px;font-size:11px;color:var(--muted);line-height:1.6;padding:8px 12px;background:rgba(201,168,76,.06);border-radius:8px;border-left:3px solid var(--gold-dim)';
+  linkInfo.textContent = 'Compartilhe este link com seus clientes. Só os clientes do seu perfil conseguem agendar por ele.';
+  linkCard.appendChild(linkInfo);
+  frag.appendChild(linkCard);
 
   // Bloco Premium
   const premCard=div('');
