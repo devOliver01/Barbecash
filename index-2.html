@@ -5,23 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BarberCash</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" onerror="loadQrFallback()"></script>
 <script>
-// Carrega qrcode-generator com múltiplos fallbacks
-(function(){
-  function tryLoad(urls, idx){
-    if(idx>=urls.length){ window._qrFailed=true; return; }
-    var s=document.createElement('script');
-    s.src=urls[idx];
-    s.onload=function(){ window._qrLoaded=true; };
-    s.onerror=function(){ tryLoad(urls,idx+1); };
-    document.head.appendChild(s);
-  }
-  tryLoad([
-    'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js',
-    'https://unpkg.com/qrcode-generator@1.4.4/qrcode.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
-  ], 0);
-})();
+function loadQrFallback(){
+  // Fallback: carrega de CDN alternativo
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  s.onerror=function(){
+    // Segundo fallback: unpkg
+    var s2=document.createElement('script');
+    s2.src='https://unpkg.com/qrcode-generator@1.4.4/qrcode.js';
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
 </script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -1613,14 +1610,7 @@ function renderConfig(){
   linkCard.innerHTML = `<div class="card-title">🔗 Link de Agendamento</div>`;
 
   const bookingUrl = (() => {
-    // Monta URL robusta para GitHub Pages, servidor local ou qualquer hospedagem
-    const loc = window.location;
-    // Pega o caminho sem o arquivo atual e sem query/hash
-    const pathParts = loc.pathname.split('/');
-    pathParts.pop(); // remove 'index.html' ou arquivo atual
-    const basePath = pathParts.join('/');
-    // basePath pode ser '' (raiz) ou '/repo' (GitHub Pages com subpasta)
-    const base = `${loc.protocol}//${loc.host}${basePath ? basePath + '/' : '/'}`;
+    const base = window.location.href.replace('index.html','').replace(/\?.*$/,'').replace(/#.*$/,'');
     return `${base}booking.html?uid=${state.uid}`;
   })();
 
@@ -1647,7 +1637,7 @@ function renderConfig(){
   btnWpp.onclick = () => {
     const msg = `Olá! Agende seu horário na barbearia pelo link:\n${bookingUrl}`;
     if(navigator.share){ navigator.share({title:'Agendamento',text:msg,url:bookingUrl}).catch(()=>{}); }
-    else { window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`,'_blank'); }
+    else { window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank'); }
   };
 
   // QR Code do link
@@ -1660,7 +1650,7 @@ function renderConfig(){
     if(qrDiv.style.display === 'none' || !qrDiv.style.display){
       qrDiv.style.display = 'block';
       qrDiv.innerHTML = '<div style="display:inline-block;border-radius:12px;background:#fff;padding:12px" id="booking-qr-box"></div><div style="font-size:11px;color:var(--muted);margin-top:8px">Aponte a câmera do celular para compartilhar</div>';
-      gerarQR(document.getElementById('booking-qr-box'), bookingUrl, 180);
+      try{ gerarQR(document.getElementById('booking-qr-box'), bookingUrl, 160); }catch(e){ qrDiv.innerHTML = bookingUrl; }
     } else {
       qrDiv.style.display = 'none';
     }
@@ -1902,52 +1892,31 @@ function gerarPixPayload(chave, valor, nomeBarbeiro){
 }
 
 // ── QR CODE NATIVO (canvas, sem API externa) ──────────────────────────────────
-function gerarQRCanvas(container, texto, sizePx){
-  // Tenta gerar via qrcode-generator (lib carregada no head)
-  if(typeof qrcode === 'function'){
-    try{
-      const qr=qrcode(0,'M');
-      qr.addData(texto,'Byte');
-      qr.make();
-      const modules=qr.getModuleCount();
-      const cell=Math.max(2, Math.floor(sizePx/modules));
-      const total=cell*modules;
-      const canvas=document.createElement('canvas');
-      canvas.width=total; canvas.height=total;
-      canvas.style.cssText=`width:${Math.min(total,sizePx)}px;height:${Math.min(total,sizePx)}px;border-radius:6px;display:block`;
-      const ctx=canvas.getContext('2d');
-      ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,total,total);
-      ctx.fillStyle='#000000';
-      for(let r=0;r<modules;r++) for(let c=0;c<modules;c++) if(qr.isDark(r,c)) ctx.fillRect(c*cell,r*cell,cell,cell);
-      container.innerHTML='';
-      container.appendChild(canvas);
-      return true;
-    }catch(e){ console.warn('QR canvas falhou:',e); }
-  }
-  return false;
-}
-
-function gerarQRImgFallback(container, texto, sizePx){
-  // Fallback: usa Google Charts API (sempre funciona se tiver internet)
-  const url = `https://chart.googleapis.com/chart?cht=qr&chs=${sizePx}x${sizePx}&chl=${encodeURIComponent(texto)}&choe=UTF-8&chld=M|1`;
-  container.innerHTML='';
-  const img = document.createElement('img');
-  img.src = url;
-  img.width = sizePx; img.height = sizePx;
-  img.style.cssText = `border-radius:6px;display:block;width:${sizePx}px;height:${sizePx}px`;
-  img.onerror = () => { container.innerHTML=`<div style="padding:10px;font-size:10px;color:#333;word-break:break-all;background:#fff;border-radius:8px;max-width:${sizePx}px">${texto}</div>`; };
-  container.appendChild(img);
-}
-
 function gerarQR(container, texto, sizePx){
-  container.innerHTML='<div style="color:#999;font-size:11px;padding:10px">Gerando QR...</div>';
-  // Tenta canvas primeiro, se não carregou ainda aguarda 800ms e tenta de novo
-  if(!gerarQRCanvas(container, texto, sizePx)){
-    setTimeout(()=>{
-      if(!gerarQRCanvas(container, texto, sizePx)){
-        gerarQRImgFallback(container, texto, sizePx);
+  container.innerHTML='';
+  try{
+    const qr=qrcode(0,'M');
+    qr.addData(texto,'Byte');
+    qr.make();
+    const modules=qr.getModuleCount();
+    const cell=Math.floor(sizePx/modules);
+    const total=cell*modules;
+    const canvas=document.createElement('canvas');
+    canvas.width=total; canvas.height=total;
+    canvas.style.cssText=`width:${total}px;height:${total}px;border-radius:6px;display:block`;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff';
+    ctx.fillRect(0,0,total,total);
+    ctx.fillStyle='#000000';
+    for(let r=0;r<modules;r++){
+      for(let c=0;c<modules;c++){
+        if(qr.isDark(r,c)) ctx.fillRect(c*cell,r*cell,cell,cell);
       }
-    }, 800);
+    }
+    container.appendChild(canvas);
+  }catch(e){
+    console.error('QR:',e);
+    container.innerHTML='<div style="padding:10px;font-size:11px;color:#333;text-align:center;word-break:break-all;background:#fff;border-radius:8px">'+texto+'</div>';
   }
 }
 function renderQrPix(){
@@ -2272,8 +2241,7 @@ window.enviarWppOpt = function(idx){
   if(!overlay) return;
   const msg = overlay._msgs[idx].texto;
   const n = overlay._wpp;
-  const nNorm = n.startsWith('55') && n.length > 11 ? n : '55'+n.replace(/^55/,'');
-  window.open(`https://wa.me/${nNorm}?text=${encodeURIComponent(msg)}`,'_blank');
+  window.open(`https://wa.me/55${n}?text=${encodeURIComponent(msg)}`,'_blank');
   fecharWppOpts();
 };
 
@@ -2678,8 +2646,7 @@ window.abrirWppMsg = function(wpp, nome, servico, dataHora){
     const horaStr = dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     msg += `Seu agendamento de *${servico}* está confirmado para ${diaStr} às ${horaStr}. 💈`;
   }
-  const nNorm = n.startsWith('55') && n.length > 11 ? n : '55'+n.replace(/^55/,'');
-  window.open(`https://wa.me/${nNorm}?text=${encodeURIComponent(msg)}`,'_blank');
+  window.open(`https://wa.me/55${n}?text=${encodeURIComponent(msg)}`,'_blank');
 };
 
 window.fazerLogout=async function(){await signOut(auth);};
