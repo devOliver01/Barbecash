@@ -29,12 +29,14 @@ function loadQrFallback(){
   --red:#e05555;--green:#4caf78;--blue:#5b9cf6;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:auto}
+/* mobile: coluna centralizada */
 #app{display:flex;flex-direction:column;min-height:100%;max-width:480px;margin:0 auto;position:relative}
+/* desktop: linha, tela toda */
 @media(min-width:768px){
-  html,body{height:auto;min-height:100%}
-  #app{max-width:100%;flex-direction:row;align-items:stretch;min-height:100vh}
+  html,body{height:100vh;overflow:hidden}
+  #app{max-width:100vw;width:100vw;margin:0;flex-direction:row;align-items:stretch;height:100vh;overflow:hidden}
 }
-.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:32px 24px;gap:20px;overflow-y:auto}@media(min-width:768px){.login-screen{min-height:100vh}.login-card{max-width:400px;width:100%}}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:32px 24px;gap:20px;overflow-y:auto}@media(min-width:768px){.login-screen{height:100vh;overflow-y:auto}.login-card{max-width:420px;width:100%}}
 .login-logo{display:flex;flex-direction:column;align-items:center;gap:12px}
 .login-logo-icon{width:72px;height:72px;background:var(--gold);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px}
 .login-title{font-family:'Playfair Display',serif;font-size:32px;color:var(--gold);letter-spacing:2px}
@@ -67,13 +69,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .user-badge span{color:var(--gold);font-weight:500}
 .nav{display:flex;background:var(--surface);border-top:1px solid var(--border);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(min-width:768px){
-  .nav{position:fixed;left:0;top:0;bottom:0;width:200px;max-width:200px;transform:none;flex-direction:column;border-top:none;border-right:1px solid var(--border);padding:24px 0 24px;justify-content:flex-start;gap:4px}
-  .nav-btn{padding:12px 20px;font-size:12px;border-top:none;border-left:3px solid transparent;border-radius:0 10px 10px 0;flex-direction:row;gap:10px;align-items:center;justify-content:flex-start}
-  .nav-btn .nav-icon{font-size:20px}
-  .nav-btn.active{border-top-color:transparent;border-left-color:var(--gold);background:rgba(201,168,76,.08)}
-  .main-area{margin-left:200px;flex:1;display:flex;flex-direction:column;min-height:100vh}
-  .header{position:sticky;top:0;z-index:50}
-  .body{padding:24px;padding-bottom:48px;overflow-y:auto}
+  .nav{position:fixed;top:0;left:0;width:220px;min-width:220px;height:100vh;max-width:220px;transform:none;flex-direction:column;border-top:none;border-right:1px solid var(--border);padding:0 0 24px;justify-content:flex-start;gap:2px;overflow-y:auto;flex-shrink:0;z-index:100}
+  .nav-btn{padding:13px 22px;font-size:13px;border-top:none;border-left:3px solid transparent;border-radius:0 10px 10px 0;flex-direction:row;gap:12px;align-items:center;justify-content:flex-start;width:100%}
+  .nav-btn .nav-icon{font-size:20px;flex-shrink:0}
+  .nav-btn.active{border-top-color:transparent;border-left-color:var(--gold);background:rgba(201,168,76,.08);color:var(--gold)}
+  .main-area{margin-left:220px;flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;min-width:0}
+  .header{flex-shrink:0;position:sticky;top:0;z-index:50}
+  .body{flex:1;overflow-y:auto;padding:28px 40px 48px}
 }
 .nav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;font-family:'DM Sans',sans-serif;border-top:2px solid transparent;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav-btn .nav-icon{font-size:18px}
@@ -292,7 +294,7 @@ details>summary::marker{display:none}
   <div id="root-content" style="min-height:100%;display:flex;flex-direction:column"></div>
 </div>
 <div class="feedback" id="feedback"></div>
-<div class="overlay" id="overlayConfirm" onclick="if(event.target===this)closeModal('overlayConfirm')">
+<div class="overlay" id="overlayConfirm" onclick="if(event.target===this)closeModal('overlayConfirm')" style="z-index:999">
   <div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:20px">
     <div class="confirm-modal">
       <div class="confirm-title" id="confirm-title-text">Excluir registro?</div>
@@ -525,7 +527,15 @@ details>summary::marker{display:none}
           <input class="input" id="mra-gorjeta" placeholder="Valor..." inputmode="numeric" style="display:none"/>
         </div>
       </div>
-      <div class="field"><label>Forma de Pagamento</label><div class="pag-tabs" id="mra-pag-tabs"></div></div>
+      <div class="field"><label>Forma de Pagamento</label>
+        <div class="pag-tabs" id="mra-pag-tabs"></div>
+        <div id="mra-qr-wrap" style="text-align:center;margin-top:12px;display:none">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">QR Code PIX</div>
+          <div id="mra-qr-container" style="display:inline-block;border-radius:12px;background:#fff;padding:10px"></div>
+          <div id="mra-qr-chave" style="font-size:12px;color:var(--muted);margin-top:8px;word-break:break-all;padding:0 8px"></div>
+          <button onclick="copiarPixBarbeiro()" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:11px;cursor:pointer;padding:5px 14px;font-family:'DM Sans',sans-serif">📋 Copiar chave</button>
+        </div>
+      </div>
       <div class="field"><label>Observação</label><textarea class="input" id="mra-obs" rows="2" placeholder="Opcional..." style="font-size:13px"></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn-primary" id="btn-mra-salvar" onclick="salvarRegistroAgendamento()">✂ Registrar</button></div>
@@ -695,7 +705,6 @@ async function loadUserData(uid){
 
 async function saveConfig(){
   if(!state.uid)return;
-  // Sempre salva local primeiro
   salvarLocalUsuario(state.uid);
   setSyncing(true);
   try{
@@ -705,6 +714,10 @@ async function saveConfig(){
       nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
       chavePixTipo:state.chavePixTipo, plano:state.plano
     });
+    // Sincroniza cortes com admin/config.cortesPublicos para o booking ver em tempo real
+    try{
+      await setDoc(doc(db,'admin','config'), {cortesPublicos: state.cortesLista}, {merge:true});
+    }catch(e2){ console.warn('sync cortesPublicos:',e2.message||e2); }
   }catch(e){ console.warn('saveConfig offline:',e.message||e); }
   setSyncing(false);
 }
@@ -988,7 +1001,7 @@ function renderLoading(){
 
 function renderLogin(successMsg=''){
   document.getElementById('root-content').innerHTML=`
-    <div class="login-screen">
+    <div class="login-screen" style="width:100%">
       <div class="login-logo">
         <div class="login-logo-icon">✂</div>
         <div class="login-title">BarberCash</div>
@@ -1080,7 +1093,7 @@ window.handleAuth=async function(){
 // ── APP ───────────────────────────────────────────────────────────────────────
 function renderApp(){
   document.getElementById('root-content').innerHTML=`
-    <div style="display:flex;flex-direction:column;width:100%">
+    <div style="display:flex;flex-direction:row;width:100%;height:100%">
       <nav class="nav">
         <div class="nav-desktop-logo">✂ <span>BarberCash</span></div>
         <button class="nav-btn active" onclick="irTela('registrar',this)"><span class="nav-icon">✚</span>Registrar</button>
@@ -1592,6 +1605,73 @@ function renderConfig(){
     row.onclick=item.fn;card.appendChild(row);
   });
 
+  // ── CARD LINK DO AGENDAMENTO ──
+  const linkCard = div('card');
+  linkCard.innerHTML = `<div class="card-title">🔗 Link de Agendamento</div>`;
+
+  const bookingUrl = (() => {
+    const base = window.location.href.replace('index.html','').replace(/\?.*$/,'').replace(/#.*$/,'');
+    return `${base}booking.html?uid=${state.uid}`;
+  })();
+
+  const linkBox = div('');
+  linkBox.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;word-break:break-all;font-size:12px;color:var(--muted);line-height:1.6';
+  linkBox.textContent = bookingUrl;
+  linkCard.appendChild(linkBox);
+
+  const linkBtns = div('');
+  linkBtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+
+  const btnCopiar = document.createElement('button');
+  btnCopiar.style.cssText = 'flex:1;padding:11px;background:var(--gold);border:none;border-radius:10px;color:#000;font-size:13px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+  btnCopiar.innerHTML = '📋 Copiar link';
+  btnCopiar.onclick = () => {
+    navigator.clipboard.writeText(bookingUrl).then(()=>showFeedback('Link copiado!','ok')).catch(()=>{
+      const el=document.createElement('textarea');el.value=bookingUrl;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove();showFeedback('Link copiado!','ok');
+    });
+  };
+
+  const btnWpp = document.createElement('button');
+  btnWpp.style.cssText = 'flex:1;padding:11px;background:#25D366;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+  btnWpp.innerHTML = '💬 Compartilhar';
+  btnWpp.onclick = () => {
+    const msg = `Olá! Agende seu horário na barbearia pelo link:\n${bookingUrl}`;
+    if(navigator.share){ navigator.share({title:'Agendamento',text:msg,url:bookingUrl}).catch(()=>{}); }
+    else { window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank'); }
+  };
+
+  // QR Code do link
+  const btnQr = document.createElement('button');
+  btnQr.style.cssText = 'padding:11px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+  btnQr.innerHTML = '📷 QR';
+  btnQr.onclick = () => {
+    const qrDiv = document.getElementById('booking-qr-preview');
+    if(!qrDiv) return;
+    if(qrDiv.style.display === 'none' || !qrDiv.style.display){
+      qrDiv.style.display = 'block';
+      qrDiv.innerHTML = '<div style="display:inline-block;border-radius:12px;background:#fff;padding:12px" id="booking-qr-box"></div><div style="font-size:11px;color:var(--muted);margin-top:8px">Aponte a câmera do celular para compartilhar</div>';
+      try{ gerarQR(document.getElementById('booking-qr-box'), bookingUrl, 160); }catch(e){ qrDiv.innerHTML = bookingUrl; }
+    } else {
+      qrDiv.style.display = 'none';
+    }
+  };
+
+  linkBtns.appendChild(btnCopiar);
+  linkBtns.appendChild(btnWpp);
+  linkBtns.appendChild(btnQr);
+  linkCard.appendChild(linkBtns);
+
+  const qrPreview = div('');
+  qrPreview.id = 'booking-qr-preview';
+  qrPreview.style.cssText = 'display:none;margin-top:14px;text-align:center';
+  linkCard.appendChild(qrPreview);
+
+  const linkInfo = div('');
+  linkInfo.style.cssText = 'margin-top:10px;font-size:11px;color:var(--muted);line-height:1.6;padding:8px 12px;background:rgba(201,168,76,.06);border-radius:8px;border-left:3px solid var(--gold-dim)';
+  linkInfo.textContent = 'Compartilhe este link com seus clientes. Só os clientes do seu perfil conseguem agendar por ele.';
+  linkCard.appendChild(linkInfo);
+  frag.appendChild(linkCard);
+
   // Bloco Premium
   const premCard=div('');
   const plano=planoAtivo();
@@ -1853,6 +1933,17 @@ function renderQrPix(){
 }
 window.renderQrPix=renderQrPix;
 
+function renderMraQrPix(pagAtual){
+  const wrap=document.getElementById('mra-qr-wrap');if(!wrap)return;
+  if(pagAtual!=='pix'||!state.chavePix){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const chaveEl=document.getElementById('mra-qr-chave');if(chaveEl)chaveEl.textContent=state.chavePix;
+  const container=document.getElementById('mra-qr-container');
+  if(!container)return;
+  try{const payload=gerarPixPayload(state.chavePix,0,state.nomeUsuario);gerarQR(container,payload,140);}
+  catch(e){gerarQR(container,state.chavePix,140);}
+}
+
 // ── NOME USUÁRIO ──────────────────────────────────────────────────────────────
 window.salvarNome=function(){
   const nome=document.getElementById('nome-input').value.trim();
@@ -1909,20 +2000,46 @@ window.salvarMetas=function(){const toNum=id=>{const raw=document.getElementById
 
 window.confirmarExcluir=function(id){
   document.getElementById('confirm-title-text').textContent='Excluir registro?';
+  document.querySelector('.confirm-sub').textContent='Esta ação não pode ser desfeita.';
   document.getElementById('btn-confirm-del').onclick=async()=>{state.registros=state.registros.filter(r=>r.id!==id);closeModal('overlayConfirm');showFeedback('Registro removido.','ok');render();await deleteRegistro(id);};
   openModal('overlayConfirm');
 };
 function confirmarLimpar(){
   document.getElementById('confirm-title-text').textContent='Limpar todos os dados?';
+  document.querySelector('.confirm-sub').textContent='Registros, vagas e agendamentos locais serao removidos. Dados sincronizados com a nuvem serao recarregados.';
   document.getElementById('btn-confirm-del').onclick=async()=>{
-    const ids=state.registros.map(r=>r.id);
-    state.registros=[];
-    // Limpa local E nuvem
-    limparLocalUsuario(state.uid);
     closeModal('overlayConfirm');
-    showFeedback('Dados apagados.','ok');
+    showFeedback('Limpando dados...','ok');
+
+    // 1. Apaga registros locais e do Firestore
+    const idsReg = state.registros.map(r=>r.id);
+    state.registros = [];
+    for(const id of idsReg) await deleteRegistro(id);
+
+    // 2. Apaga vagas locais e do Firestore
+    const idsVagas = (state.vagas||[]).map(v=>v.id);
+    state.vagas = [];
+    for(const id of idsVagas){
+      try{ await deleteDoc(doc(db,'vagas',id)); }catch(e){ console.warn('del vaga:',e); }
+    }
+
+    // 3. Apaga agendamentos do Firestore
+    try{
+      const snapAg = await getDocs(collection(db,'agendamentos'));
+      for(const d of snapAg.docs){
+        try{ await deleteDoc(doc(db,'agendamentos',d.id)); }catch(e){ console.warn('del ag:',e); }
+      }
+    }catch(e){ console.warn('del agendamentos:',e); }
+    state.agendamentos = [];
+
+    // 4. Limpa localStorage e recarrega config da nuvem
+    limparLocalUsuario(state.uid);
+
+    // 5. Recarrega dados sincronizados da nuvem
+    await loadUserData(state.uid);
+
+    showFeedback('Dados apagados. Nuvem recarregada.','ok');
     render();
-    for(const id of ids) await deleteRegistro(id);
   };
   openModal('overlayConfirm');
 }
@@ -2226,7 +2343,7 @@ function abrirModalRegAgendamento(ag){
     const btn=document.createElement('button');
     btn.className='pag-tab'+(k===pagAtual?' active':'');
     btn.innerHTML=l;
-    btn.onclick=()=>{pagAtual=k;tabsEl.querySelectorAll('.pag-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');tabsEl._pag=k;};
+    btn.onclick=()=>{pagAtual=k;tabsEl.querySelectorAll('.pag-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');tabsEl._pag=k;renderMraQrPix(k);};
     tabsEl.appendChild(btn);
   });
   tabsEl._pag=pagAtual;
@@ -2235,6 +2352,7 @@ function abrirModalRegAgendamento(ag){
   document.getElementById('mra-obs').value = ag.obs||'';
 
   openModal('modalRegAgenda');
+  setTimeout(()=>renderMraQrPix(pagAtual),50);
 }
 
 window.salvarRegistroAgendamento = async function(){
@@ -2373,10 +2491,9 @@ function renderCalVagas(){
   const slots = document.getElementById('cal-vagas-slots');
   if(!label||!grid||!slots) return;
 
-  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   label.textContent = `${meses[_calVagasMes]} ${_calVagasAno}`;
 
-  // Constrói mapa dia→vagas
   const vagasPorDia = {};
   state.vagas.forEach(v=>{
     const d = new Date(v.dataHora);
@@ -2391,10 +2508,7 @@ function renderCalVagas(){
   const primeiroDia = new Date(_calVagasAno, _calVagasMes, 1).getDay();
   const totalDias   = new Date(_calVagasAno, _calVagasMes+1, 0).getDate();
 
-  // Cabeçalho dias semana
   grid.innerHTML = ['D','S','T','Q','Q','S','S'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
-
-  // Dias vazios antes do primeiro
   for(let i=0;i<primeiroDia;i++) grid.innerHTML += `<div class="cal-day vazio"></div>`;
 
   for(let d=1;d<=totalDias;d++){
@@ -2407,8 +2521,8 @@ function renderCalVagas(){
     const isHoje = dataD.getTime()===hoje.getTime();
 
     let cls = 'cal-day';
-    if(passado) cls+=' passado';
-    else if(sel) cls+=' selecionado';
+    if(sel) cls+=' selecionado';
+    else if(passado) cls+=' passado';
     else if(temVagas) cls+=' tem-vagas';
     if(isHoje) cls+=' hoje';
 
@@ -2416,36 +2530,43 @@ function renderCalVagas(){
     const el = document.createElement('div');
     el.className = cls;
     el.innerHTML = `${d}${dot}`;
-    if(!passado) el.onclick = ()=>{ _calVagasDiaSel = dataD.getTime(); renderCalVagas(); };
+    el.onclick = ()=>{ _calVagasDiaSel = dataD.getTime(); renderCalVagas(); };
     grid.appendChild(el);
   }
 
-  // Slots do dia selecionado
+  // Slots do dia selecionado — lista simples, sem grid
   if(!_calVagasDiaSel){ slots.innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0">Toque em um dia para ver os horários</div>'; return; }
   const dSel = new Date(_calVagasDiaSel);
   const dSelNum = dSel.getDate();
   const vagasDia = (vagasPorDia[dSelNum]||[]).sort((a,b)=>a.dataHora-b.dataHora);
 
   const diaFmt = dSel.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-  slots.innerHTML = `<div class="cal-slots-header">${diaFmt} · ${vagasDia.length} horário(s)</div>`;
+  const totalVagas = vagasDia.length;
+  const livres = vagasDia.filter(v=>v.disponivel!==false).length;
+  slots.innerHTML = `<div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span>${diaFmt}</span><span style="color:var(--muted)">${livres} livre${livres!==1?'s':''} · ${totalVagas} total</span></div>`;
 
   if(!vagasDia.length){
-    slots.innerHTML += `<div style="text-align:center;color:var(--muted);font-size:13px;padding:12px 0;background:var(--surface2);border-radius:10px">Nenhum horário neste dia</div>`;
+    slots.innerHTML += `<div style="text-align:center;color:var(--muted);font-size:13px;padding:14px;background:var(--surface2);border-radius:10px">Nenhum horário neste dia</div>`;
     return;
   }
 
-  const slotGrid = div('cal-slots-grid');
+  // Lista de horários — simples e clara
+  const lista = document.createElement('div');
+  lista.style.cssText='display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;padding-right:2px';
   vagasDia.forEach(v=>{
     const horaStr = new Date(v.dataHora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     const ocupado = v.disponivel===false;
-    const slotEl = div('cal-slot'+(ocupado?' ocupado':''));
-    slotEl.innerHTML = `
-      <button class="cal-slot-del" title="Remover" onclick="excluirVaga('${v.id}')">✕</button>
-      <div class="cal-slot-hora">${horaStr}</div>
-      <div class="cal-slot-status">${ocupado?(v.agendadoPor||'Ocupado'):'Livre'}</div>`;
-    slotGrid.appendChild(slotEl);
+    const row = document.createElement('div');
+    row.style.cssText=`display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:${ocupado?'rgba(224,85,85,.06)':'var(--surface2)'}`;
+    row.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Playfair Display',serif;font-size:18px;color:${ocupado?'var(--red)':'var(--gold)'}">${horaStr}</span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:6px;background:${ocupado?'rgba(224,85,85,.15)':'rgba(76,175,120,.12)'};color:${ocupado?'var(--red)':'var(--green)'}">${ocupado?(v.agendadoPor||'Ocupado'):'Livre'}</span>
+      </div>
+      <button onclick="excluirVaga('${v.id}')" style="background:none;border:1px solid var(--muted2);border-radius:6px;color:var(--muted);cursor:pointer;padding:4px 10px;font-size:12px;font-family:'DM Sans',sans-serif">✕ Remover</button>`;
+    lista.appendChild(row);
   });
-  slots.appendChild(slotGrid);
+  slots.appendChild(lista);
 }
 window.renderCalVagas = renderCalVagas;
 
@@ -2484,6 +2605,7 @@ window.renderListaVagasModal=renderListaVagasModal;
 
 window.excluirVaga = function(id){
   document.getElementById('confirm-title-text').textContent='Excluir vaga?';
+  document.querySelector('.confirm-sub').textContent='Esta ação não pode ser desfeita.';
   document.getElementById('btn-confirm-del').onclick = async () => {
     try{
       await deleteDoc(doc(db,'vagas',id));
