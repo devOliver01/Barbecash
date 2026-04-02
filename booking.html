@@ -146,6 +146,7 @@ textarea.inp{resize:none;height:80px;font-size:14px}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, getDocs, addDoc, setDoc, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const FB = {
   apiKey:"AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
@@ -155,7 +156,9 @@ const FB = {
   messagingSenderId:"222760224701",
   appId:"1:222760224701:web:afa93064a97b10c28c34d4"
 };
-const db = getFirestore(initializeApp(FB));
+const app = initializeApp(FB);
+const db  = getFirestore(app);
+const auth = getAuth(app);
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const S = {
@@ -184,6 +187,9 @@ const fmtWpp  = n  => { const d=n.replace(/\D/g,''); return d.length===11?`(${d.
 async function init() {
   const urlParams = new URLSearchParams(window.location.search);
   S.uidBarbeiro = urlParams.get('uid') || null;
+
+  // ── 0. Autenticação anônima — necessária para leitura de coleções protegidas ─
+  try { await signInAnonymously(auth); } catch(e) { console.warn('anon auth:', e); }
 
   // ── 1. Carrega nome/config do barbeiro ──────────────────────────────────────
   function atualizarHero(nomeUsuario, cfg){

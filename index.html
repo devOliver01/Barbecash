@@ -858,6 +858,11 @@ async function _pushCortesBooking(){
   try{
     await setDoc(doc(db,'barbeiros',state.uid), payload);
   }catch(e){ console.warn('pushCortesBooking barbeiros:', e.message||e); }
+
+  // 3. admin/config — fallback para booking sem ?uid= na URL
+  try{
+    await setDoc(doc(db,'admin','config'), {cortesPublicos: state.cortesLista}, {merge:true});
+  }catch(e){ console.warn('pushCortesBooking admin:', e.message||e); }
 }
 
 // ── ADMIN CONFIG ──────────────────────────────────────────────────────────────
