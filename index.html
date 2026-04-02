@@ -703,10 +703,19 @@ async function loadUserData(uid){
   setSyncing(false);
 }
 
-async function saveConfig(){
-  if(!state.uid)return;
+function saveConfig(){
+  // Salva apenas localmente — nuvem só ao clicar em Sincronizar
+  if(!state.uid) return;
   salvarLocalUsuario(state.uid);
-  setSyncing(true);
+  // Marca config como pendente de sync
+  try{ localStorage.setItem('bc_cfg_pendente_'+state.uid,'1'); }catch(e){}
+  // Atualiza booking em tempo real (cortes) sem exigir sync manual
+  _pushCortesBooking();
+}
+
+// Envia cortes para o booking em tempo real (separado do sync de registros)
+async function _pushCortesBooking(){
+  if(!state.uid) return;
   try{
     await setDoc(doc(db,'users',state.uid,'config','main'),{
       cortesLista:state.cortesLista, barbeiros:state.barbeiros,
@@ -714,12 +723,8 @@ async function saveConfig(){
       nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
       chavePixTipo:state.chavePixTipo, plano:state.plano
     });
-    // Sincroniza cortes com admin/config.cortesPublicos para o booking ver em tempo real
-    try{
-      await setDoc(doc(db,'admin','config'), {cortesPublicos: state.cortesLista}, {merge:true});
-    }catch(e2){ console.warn('sync cortesPublicos:',e2.message||e2); }
-  }catch(e){ console.warn('saveConfig offline:',e.message||e); }
-  setSyncing(false);
+    await setDoc(doc(db,'admin','config'), {cortesPublicos: state.cortesLista}, {merge:true});
+  }catch(e){ console.warn('pushCortesBooking offline:',e.message||e); }
 }
 
 // ── ADMIN CONFIG ──────────────────────────────────────────────────────────────
@@ -1530,38 +1535,76 @@ window.sincronizarNuvem = async function(){
   setSyncing(true);
   showFeedback('Sincronizando...','ok');
   try{
-    // Sobe config
-    await setDoc(doc(db,'users',state.uid,'config','main'),{
-      cortesLista:state.cortesLista, barbeiros:state.barbeiros,
-      barbeiroAtual:state.barbeiroAtual, metas:state.metas,
-      nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
-      chavePixTipo:state.chavePixTipo, plano:state.plano
-    });
-
-    // Sobe registros pendentes (id começa com 't' = ainda não foi pro Firestore)
-    // Remove campos inválidos antes de enviar (_tempId, id local)
     const pendentes = state.registros.filter(r => r.id && r.id.startsWith('t'));
-    for(const reg of pendentes){
-      try{
-        const { id, _tempId, ...dadosLimpos } = reg;
-        const ref = await addDoc(
-          collection(db,'users',state.uid,'registros'),
-          { ...dadosLimpos, createdAt: dadosLimpos.createdAt || Date.now() }
-        );
-        // Atualiza o id local para o id real do Firestore
-        reg.id = ref.id;
-        delete reg._tempId;
-      }catch(err){ console.warn('sync reg erro:',err.code, err.message); }
+    const cfgPendente = localStorage.getItem('bc_cfg_pendente_'+state.uid) === '1';
+    const temEnviar = pendentes.length > 0 || cfgPendente;
+
+    if(temEnviar){
+      // ── ENVIA config se tiver mudanças ──
+      if(cfgPendente){
+        await setDoc(doc(db,'users',state.uid,'config','main'),{
+          cortesLista:state.cortesLista, barbeiros:state.barbeiros,
+          barbeiroAtual:state.barbeiroAtual, metas:state.metas,
+          nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
+          chavePixTipo:state.chavePixTipo, plano:state.plano
+        });
+        // Atualiza booking em tempo real
+        try{
+          await setDoc(doc(db,'admin','config'), {cortesPublicos: state.cortesLista}, {merge:true});
+        }catch(e2){ console.warn('sync cortesPublicos:',e2.message||e2); }
+        localStorage.removeItem('bc_cfg_pendente_'+state.uid);
+      }
+
+      // ── ENVIA registros pendentes (id começa com 't') ──
+      let enviados = 0;
+      for(const reg of pendentes){
+        try{
+          const { id, _tempId, ...dadosLimpos } = reg;
+          const ref = await addDoc(
+            collection(db,'users',state.uid,'registros'),
+            { ...dadosLimpos, createdAt: dadosLimpos.createdAt || Date.now() }
+          );
+          reg.id = ref.id;
+          delete reg._tempId;
+          enviados++;
+        }catch(err){ console.warn('sync reg erro:',err.code, err.message); }
+      }
+
+      // ── BAIXA tudo da nuvem após enviar ──
+      const snap = await getDocs(query(collection(db,'users',state.uid,'registros'),orderBy('createdAt','desc')));
+      if(snap.docs.length > 0){
+        state.registros = snap.docs.map(d=>({id:d.id,...d.data()}));
+      }
+      salvarLocalUsuario(state.uid);
+      setSyncing(false);
+      const msg = enviados > 0
+        ? `✓ ${enviados} registro${enviados>1?'s':''} enviado${enviados>1?'s':''} e nuvem baixada!`
+        : '✓ Config enviada e nuvem baixada!';
+      showFeedback(msg,'ok');
+
+    } else {
+      // ── SÓ BAIXA — nada para enviar ──
+      const cfgDoc = await getDoc(doc(db,'users',state.uid,'config','main'));
+      if(cfgDoc.exists()){
+        const d = cfgDoc.data();
+        if(d.cortesLista)  state.cortesLista  = d.cortesLista;
+        if(d.barbeiros)    state.barbeiros    = d.barbeiros;
+        if(d.barbeiroAtual)state.barbeiroAtual= d.barbeiroAtual;
+        if(d.metas)        state.metas        = d.metas;
+        if(d.nomeUsuario)  state.nomeUsuario  = d.nomeUsuario;
+        if(d.chavePix)     state.chavePix     = d.chavePix;
+        if(d.chavePixTipo) state.chavePixTipo = d.chavePixTipo;
+        if(d.plano)        state.plano        = d.plano;
+      }
+      const snap = await getDocs(query(collection(db,'users',state.uid,'registros'),orderBy('createdAt','desc')));
+      if(snap.docs.length > 0){
+        state.registros = snap.docs.map(d=>({id:d.id,...d.data()}));
+      }
+      salvarLocalUsuario(state.uid);
+      setSyncing(false);
+      showFeedback('✓ Dados baixados da nuvem!','ok');
     }
 
-    // Busca tudo da nuvem para garantir consistência
-    const snap = await getDocs(query(collection(db,'users',state.uid,'registros'),orderBy('createdAt','desc')));
-    if(snap.docs.length > 0){
-      state.registros = snap.docs.map(d=>({id:d.id,...d.data()}));
-    }
-    salvarLocalUsuario(state.uid);
-    setSyncing(false);
-    showFeedback('✓ Sincronizado com a nuvem!','ok');
     render();
   }catch(e){
     setSyncing(false);
@@ -1597,7 +1640,7 @@ function renderConfig(){
      }
      openModal('modalPix');
    }},
-   {icon:'☁',label:'Sincronizar com a nuvem',sub:'Salva todos os dados no Firebase agora',fn:()=>sincronizarNuvem()},
+   {icon:'☁',label:'Sincronizar com a nuvem',sub:'Envia dados pendentes e baixa histórico da nuvem',fn:()=>sincronizarNuvem()},
    {icon:'🗑',label:'Limpar todos os dados',sub:'Remove todos os registros permanentemente',fn:()=>confirmarLimpar(),danger:true},
   ].forEach(item=>{
     const row=div('corte-item');row.style.cursor='pointer';
