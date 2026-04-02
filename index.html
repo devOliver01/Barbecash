@@ -2692,11 +2692,19 @@ function renderAgendamentos(){
   const headerRow = div('');
   headerRow.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:14px';
   headerRow.innerHTML=`<div class="card-title" style="margin-bottom:0">📅 Agenda</div>`;
+  const btnRowAgenda = div('');
+  btnRowAgenda.style.cssText='display:flex;gap:6px;align-items:center';
+  const btnServicos = document.createElement('button');
+  btnServicos.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;padding:7px 12px;font-family:"DM Sans",sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap';
+  btnServicos.innerHTML='✂ Serviços';
+  btnServicos.onclick = () => { renderModalCortes(); openModal('modalCortes'); };
   const btnVagas = document.createElement('button');
-  btnVagas.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--gold);font-size:12px;cursor:pointer;padding:7px 14px;font-family:"DM Sans",sans-serif;display:flex;align-items:center;gap:6px';
+  btnVagas.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--gold);font-size:12px;cursor:pointer;padding:7px 14px;font-family:"DM Sans",sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap';
   btnVagas.innerHTML='⚙️ Vagas';
   btnVagas.onclick = () => { abrirModalVagas(); };
-  headerRow.appendChild(btnVagas);
+  btnRowAgenda.appendChild(btnServicos);
+  btnRowAgenda.appendChild(btnVagas);
+  headerRow.appendChild(btnRowAgenda);
   statsCard.appendChild(headerRow);
 
   // Grid resumo
