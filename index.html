@@ -1401,6 +1401,140 @@
     }
 
     /* ── AGENDAMENTOS ── */
+    /* ── MINI CALENDÁRIO SEMANAL ── */
+    .agcal-wrap {
+      margin-bottom: 14px
+    }
+
+    .agcal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px
+    }
+
+    .agcal-mes-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 13px;
+      color: var(--gold);
+      letter-spacing: .5px
+    }
+
+    .agcal-nav-row {
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .agcal-nav-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px 10px;
+      font-size: 14px;
+      line-height: 1.2;
+      transition: all .15s
+    }
+
+    .agcal-nav-btn:active {
+      background: var(--surface2)
+    }
+
+    .agcal-btn-todos {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1.6;
+      transition: all .15s;
+      white-space: nowrap
+    }
+
+    .agcal-btn-todos.active {
+      background: var(--surface2);
+      color: var(--text);
+      border-color: var(--border2)
+    }
+
+    .agcal-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px
+    }
+
+    .agcal-day {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 2px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all .15s;
+      background: transparent
+    }
+
+    .agcal-day-dow {
+      font-size: 9px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
+
+    .agcal-day-num {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1
+    }
+
+    .agcal-day-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--gold);
+      opacity: .7
+    }
+
+    .agcal-day-dot.vazio {
+      opacity: 0
+    }
+
+    .agcal-day.hoje .agcal-day-num {
+      color: var(--gold)
+    }
+
+    .agcal-day.tem-ag {
+      background: rgba(201, 168, 76, .06);
+      border-color: rgba(201, 168, 76, .2)
+    }
+
+    .agcal-day.selected {
+      background: var(--gold);
+      border-color: var(--gold)
+    }
+
+    .agcal-day.selected .agcal-day-dow,
+    .agcal-day.selected .agcal-day-num {
+      color: #000
+    }
+
+    .agcal-day.selected .agcal-day-dot {
+      background: #000
+    }
+
+    .agcal-day.passado .agcal-day-num {
+      color: var(--muted2)
+    }
+
+    /* legado — mantido para não quebrar nada */
     .agenda-date-nav {
       display: flex;
       align-items: center;
@@ -5493,100 +5627,180 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
 
     // ── RENDER AGENDAMENTOS ───────────────────────────────────────────────────────
     // Estado de navegação de data na agenda
-    if (typeof state._agendaDataOffset === 'undefined') state._agendaDataOffset = 0;
+    // estado da agenda migrado para state._agendaDataStr / state._agendaTodos / state._agendaSemanaBase
 
     function renderAgendamentos() {
       const frag = document.createDocumentFragment();
       const agora = Date.now();
+      const hojeDate = new Date(); hojeDate.setHours(0,0,0,0);
+      const hojeStr = today();
 
-      // Data selecionada baseada no offset (0 = hoje)
-      const dataSel = new Date();
-      dataSel.setDate(dataSel.getDate() + state._agendaDataOffset);
-      dataSel.setHours(0, 0, 0, 0);
-      const dataSelFim = new Date(dataSel); dataSelFim.setHours(23, 59, 59, 999);
-      const dataSelStr = dataSel.toISOString().slice(0, 10);
-
-      // Labels para o header
-      const isHoje = state._agendaDataOffset === 0;
-      const isAmanha = state._agendaDataOffset === 1;
-      const dateLabel = isHoje ? 'Hoje' : isAmanha ? 'Amanhã'
-        : dataSel.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
-
-      // Agendamentos do dia selecionado
-      const agDia = state.agendamentos
-        .filter(a => a.dataHora >= dataSel.getTime() && a.dataHora <= dataSelFim.getTime())
-        .sort((a, b) => a.dataHora - b.dataHora);
-
-      const pendentes = agDia.filter(a => !a.atendido);
-      const atendidos = agDia.filter(a => a.atendido);
-
-      // Próximo pendente (com base no horário atual, só se for hoje)
-      const proximoAg = isHoje
-        ? pendentes.filter(a => a.dataHora >= agora - 5 * 60000).sort((a, b) => a.dataHora - b.dataHora)[0]
-        : null;
-
-      // ── CARD TOPO ──
-      const topCard = div('card');
-      topCard.style.marginBottom = '10px';
-
-      // Header: título + navegação de data
-      const headerRow = div('');
-      headerRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px';
-      const titleEl = div('card-title');
-      titleEl.style.marginBottom = '0';
-      titleEl.textContent = '📅 Agenda';
-      const dateNav = div('agenda-date-nav');
-      const btnPrev = document.createElement('button');
-      btnPrev.className = 'agenda-date-btn'; btnPrev.textContent = '‹';
-      btnPrev.onclick = () => { state._agendaDataOffset--; render(); };
-      const dateSpan = document.createElement('span');
-      dateSpan.className = 'agenda-date-label'; dateSpan.textContent = dateLabel;
-      const btnNext = document.createElement('button');
-      btnNext.className = 'agenda-date-btn'; btnNext.textContent = '›';
-      btnNext.onclick = () => { state._agendaDataOffset++; render(); };
-      dateNav.appendChild(btnPrev); dateNav.appendChild(dateSpan); dateNav.appendChild(btnNext);
-      headerRow.appendChild(titleEl); headerRow.appendChild(dateNav);
-      topCard.appendChild(headerRow);
-
-      // Stats do dia
-      const statsGrid = div('');
-      statsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:${proximoAg ? "14px" : "0"}';
-      statsGrid.innerHTML = `
-        <div class="resumo-item"><div class="resumo-val">${agDia.length}</div><div class="resumo-label">Total</div></div>
-        <div class="resumo-item"><div class="resumo-val" style="color:var(--green)">${atendidos.length}</div><div class="resumo-label">Atendidos</div></div>
-        <div class="resumo-item"><div class="resumo-val" style="color:var(--gold)">${pendentes.length}</div><div class="resumo-label">Pendentes</div></div>`;
-      topCard.appendChild(statsGrid);
-
-      // Banner próximo (só hoje)
-      if (proximoAg) {
-        const dtProx = new Date(proximoAg.dataHora);
-        const horaProx = dtProx.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const diffMin = Math.round((proximoAg.dataHora - agora) / 60000);
-        const iminente = diffMin >= -5 && diffMin <= 30;
-        const badgeLabel = diffMin <= 0 ? 'agora' : diffMin < 60 ? `em ${diffMin}min` : `em ${Math.round(diffMin / 60)}h`;
-
-        const banner = div('agenda-prox-banner');
-        banner.style.marginTop = '12px';
-        banner.innerHTML = `
-          <div>
-            <div class="agenda-prox-hora">${horaProx}</div>
-            <div class="agenda-prox-label">próximo</div>
-          </div>
-          <div class="agenda-prox-info">
-            <div class="agenda-prox-nome">${proximoAg.nome || '—'}</div>
-            <div class="agenda-prox-serv">✂ ${proximoAg.servico || '—'}</div>
-          </div>
-          <div class="agenda-prox-badge${iminente ? '' : ' ok'}">${badgeLabel}</div>`;
-        topCard.appendChild(banner);
+      // ── Estado da agenda ──
+      if (typeof state._agendaDataStr === 'undefined') state._agendaDataStr = hojeStr;
+      if (typeof state._agendaTodos === 'undefined') state._agendaTodos = false;
+      // Semana exibida no mini-cal (base = domingo da semana selecionada)
+      if (typeof state._agendaSemanaBase === 'undefined') {
+        const d = new Date(hojeDate); d.setDate(d.getDate() - d.getDay());
+        state._agendaSemanaBase = d.getTime();
       }
 
-      frag.appendChild(topCard);
+      const semanaBase = new Date(state._agendaSemanaBase);
+
+      // ── Mapa: dataStr → agendamentos ──
+      const porDia = {};
+      state.agendamentos.forEach(a => {
+        const ds = new Date(a.dataHora || 0).toISOString().slice(0,10);
+        if (!porDia[ds]) porDia[ds] = [];
+        porDia[ds].push(a);
+      });
+
+      // ── CARD PRINCIPAL ──
+      const mainCard = div('card');
+      mainCard.style.marginBottom = '10px';
+
+      // Título + botão Todos
+      const headerRow = div('');
+      headerRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px';
+      const titleEl = div('card-title'); titleEl.style.marginBottom = '0'; titleEl.textContent = '📅 Agenda';
+
+      const rightRow = div(''); rightRow.style.cssText = 'display:flex;align-items:center;gap:8px';
+
+      const btnTodos = document.createElement('button');
+      btnTodos.className = 'agcal-btn-todos' + (state._agendaTodos ? ' active' : '');
+      btnTodos.textContent = state._agendaTodos ? '✕ Todos' : '☰ Todos';
+      btnTodos.onclick = () => { state._agendaTodos = !state._agendaTodos; render(); };
+      rightRow.appendChild(btnTodos);
+
+      headerRow.appendChild(titleEl); headerRow.appendChild(rightRow);
+      mainCard.appendChild(headerRow);
+
+      // ── MINI CALENDÁRIO SEMANAL ──
+      const calWrap = div('agcal-wrap');
+
+      // Header do calendário: mês + setas de semana
+      const calHeader = div('agcal-header');
+      const mesLabel = div('agcal-mes-label');
+      // Determina mês do meio da semana
+      const meioSemana = new Date(semanaBase); meioSemana.setDate(meioSemana.getDate() + 3);
+      const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      mesLabel.textContent = `${meses[meioSemana.getMonth()]} ${meioSemana.getFullYear()}`;
+
+      const navRow = div('agcal-nav-row');
+      const btnPrevSem = document.createElement('button');
+      btnPrevSem.className = 'agcal-nav-btn'; btnPrevSem.textContent = '‹';
+      btnPrevSem.onclick = () => {
+        const nb = new Date(state._agendaSemanaBase); nb.setDate(nb.getDate() - 7);
+        state._agendaSemanaBase = nb.getTime(); render();
+      };
+      const btnNextSem = document.createElement('button');
+      btnNextSem.className = 'agcal-nav-btn'; btnNextSem.textContent = '›';
+      btnNextSem.onclick = () => {
+        const nb = new Date(state._agendaSemanaBase); nb.setDate(nb.getDate() + 7);
+        state._agendaSemanaBase = nb.getTime(); render();
+      };
+      // Botão Hoje (volta para semana atual)
+      const btnHojeCal = document.createElement('button');
+      btnHojeCal.className = 'agcal-nav-btn';
+      btnHojeCal.style.cssText = 'font-size:10px;padding:3px 8px;letter-spacing:.3px';
+      btnHojeCal.textContent = 'Hoje';
+      btnHojeCal.onclick = () => {
+        const d = new Date(hojeDate); d.setDate(d.getDate() - d.getDay());
+        state._agendaSemanaBase = d.getTime();
+        state._agendaDataStr = hojeStr;
+        state._agendaTodos = false;
+        render();
+      };
+
+      navRow.appendChild(btnPrevSem); navRow.appendChild(btnNextSem); navRow.appendChild(btnHojeCal);
+      calHeader.appendChild(mesLabel); calHeader.appendChild(navRow);
+      calWrap.appendChild(calHeader);
+
+      // Dias da semana
+      const daysGrid = div('agcal-days');
+      const dows = ['D','S','T','Q','Q','S','S'];
+      for (let i = 0; i < 7; i++) {
+        const diaDate = new Date(semanaBase); diaDate.setDate(semanaBase.getDate() + i);
+        const diaStr = diaDate.toISOString().slice(0,10);
+        const ehHoje = diaStr === hojeStr;
+        const ehSel = !state._agendaTodos && diaStr === state._agendaDataStr;
+        const passado = diaDate < hojeDate;
+        const temAg = !!(porDia[diaStr] && porDia[diaStr].length > 0);
+        const pendDia = temAg ? porDia[diaStr].filter(a => !a.atendido).length : 0;
+
+        let cls = 'agcal-day';
+        if (ehSel) cls += ' selected';
+        else if (ehHoje) cls += ' hoje';
+        else if (passado) cls += ' passado';
+        if (temAg && !ehSel) cls += ' tem-ag';
+
+        const dayEl = div(cls);
+        dayEl.innerHTML = `
+          <span class="agcal-day-dow">${dows[i]}</span>
+          <span class="agcal-day-num">${diaDate.getDate()}</span>
+          <span class="agcal-day-dot${temAg ? (pendDia > 0 ? '' : ' atendido') : ' vazio'}"></span>`;
+        dayEl.onclick = () => {
+          state._agendaDataStr = diaStr;
+          state._agendaTodos = false;
+          render();
+        };
+        daysGrid.appendChild(dayEl);
+      }
+      calWrap.appendChild(daysGrid);
+      mainCard.appendChild(calWrap);
+
+      // ── STATS ── (dia selecionado ou todos)
+      let agFiltro, labelFiltro;
+      if (state._agendaTodos) {
+        agFiltro = [...state.agendamentos].sort((a,b) => (a.dataHora||0) - (b.dataHora||0));
+        labelFiltro = 'Todos os agendamentos';
+      } else {
+        const selDate = new Date(state._agendaDataStr + 'T00:00:00');
+        const selFim  = new Date(state._agendaDataStr + 'T23:59:59');
+        agFiltro = state.agendamentos
+          .filter(a => (a.dataHora||0) >= selDate.getTime() && (a.dataHora||0) <= selFim.getTime())
+          .sort((a,b) => (a.dataHora||0) - (b.dataHora||0));
+        const isH = state._agendaDataStr === hojeStr;
+        const isA = state._agendaDataStr === new Date(agora + 86400000).toISOString().slice(0,10);
+        labelFiltro = isH ? 'Hoje' : isA ? 'Amanhã'
+          : selDate.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit'});
+      }
+
+      const pendentes = agFiltro.filter(a => !a.atendido);
+      const atendidos = agFiltro.filter(a => a.atendido);
+
+      // Stats bar
+      const statsGrid = div('');
+      statsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:0';
+      statsGrid.innerHTML = `
+        <div class="resumo-item"><div class="resumo-val">${agFiltro.length}</div><div class="resumo-label">Total</div></div>
+        <div class="resumo-item"><div class="resumo-val" style="color:var(--green)">${atendidos.length}</div><div class="resumo-label">Atendidos</div></div>
+        <div class="resumo-item"><div class="resumo-val" style="color:var(--gold)">${pendentes.length}</div><div class="resumo-label">Pendentes</div></div>`;
+      mainCard.appendChild(statsGrid);
+
+      // Próximo (só modo dia, se for hoje)
+      if (!state._agendaTodos && state._agendaDataStr === hojeStr) {
+        const proximoAg = pendentes.filter(a => (a.dataHora||0) >= agora - 5*60000)[0];
+        if (proximoAg) {
+          const diffMin = Math.round(((proximoAg.dataHora||0) - agora) / 60000);
+          const horaProx = new Date(proximoAg.dataHora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+          const badgeLabel = diffMin <= 0 ? 'agora' : diffMin < 60 ? `em ${diffMin}min` : `em ${Math.round(diffMin/60)}h`;
+          const iminente = diffMin >= -5 && diffMin <= 30;
+          const banner = div('agenda-prox-banner');
+          banner.style.marginTop = '12px';
+          banner.innerHTML = `
+            <div><div class="agenda-prox-hora">${horaProx}</div><div class="agenda-prox-label">próximo</div></div>
+            <div class="agenda-prox-info"><div class="agenda-prox-nome">${proximoAg.nome||'—'}</div><div class="agenda-prox-serv">✂ ${proximoAg.servico||'—'}</div></div>
+            <div class="agenda-prox-badge${iminente ? '' : ' ok'}">${badgeLabel}</div>`;
+          mainCard.appendChild(banner);
+        }
+      }
+
+      frag.appendChild(mainCard);
 
       // ── LISTA ──
       const listCard = div('card');
 
-      // Abas: só Pendentes e Atendidos
-      if (_agendaSubFiltro === 'mensagens') _agendaSubFiltro = 'pendentes'; // compatibilidade
+      // Abas Pendentes / Atendidos
       const tabRow = div('agenda-tab-row');
       [['pendentes', `Pendentes (${pendentes.length})`], ['atendidos', `Atendidos (${atendidos.length})`]].forEach(([k, label]) => {
         const btn = document.createElement('button');
@@ -5599,58 +5813,70 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
 
       const lista = _agendaSubFiltro === 'pendentes' ? pendentes : atendidos;
 
+      const renderCard = (ag) => {
+        const c = div('agenda-card' + (ag.atendido ? ' atendido' : ''));
+        const dtHora = new Date(ag.dataHora||0);
+        const horaStr = dtHora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        const diaStr  = dtHora.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
+        const diffMs  = (ag.dataHora||0) - agora;
+        const isIminente = !ag.atendido && diffMs > 0 && diffMs < 3600000;
+        c.innerHTML = `
+          <div class="agenda-card-hora">
+            <div class="agenda-card-hora-val">${horaStr}</div>
+            <div class="agenda-card-hora-dot"></div>
+          </div>
+          <div class="agenda-card-divider"></div>
+          <div class="agenda-card-body">
+            <div class="agenda-nome">${ag.nome||'—'}</div>
+            <div class="agenda-servico">✂ ${ag.servico||'—'}</div>
+            <div class="agenda-meta">
+              <span>${diaStr}</span>
+              ${ag.whatsapp ? `<span>📱 ${formatarWppDisplay(ag.whatsapp)}</span>` : ''}
+              ${isIminente ? `<span style="color:var(--red);font-weight:600">em ${Math.round(diffMs/60000)}min</span>` : ''}
+            </div>
+            ${ag.obs ? `<div class="agenda-obs">"${ag.obs}"</div>` : ''}
+            <div class="agenda-actions">
+              ${ag.whatsapp ? `<button class="btn-agenda-wpp" onclick="wppClienteOpts('${ag.whatsapp}','${(ag.nome||'').replace(/'/g,"\\'")}','${ag.servico||''}',${ag.dataHora||0})">💬 WhatsApp</button>` : ''}
+              <button class="btn-agenda-ok${ag.atendido ? ' done' : ''}" onclick="toggleAtendido('${ag.id}',${!!ag.atendido})">${ag.atendido ? '✓ Atendido' : 'Marcar atendido'}</button>
+              <button class="btn-agenda-del" onclick="excluirAgendamento('${ag.id}')">🗑</button>
+            </div>
+          </div>`;
+        return c;
+      };
+
       if (!lista.length) {
-        const vazio = div('vazio');
-        vazio.style.padding = '32px 0';
+        const vazio = div('vazio'); vazio.style.padding = '32px 0';
         vazio.innerHTML = `<div class="vazio-icon">${_agendaSubFiltro === 'pendentes' ? '📭' : '✅'}</div>${_agendaSubFiltro === 'pendentes' ? 'Nenhum agendamento pendente' : 'Nenhum atendimento registrado'}`;
         listCard.appendChild(vazio);
+      } else if (state._agendaTodos) {
+        // Modo todos: agrupa por dia
+        const grupos = {};
+        lista.forEach(a => {
+          const ds = new Date(a.dataHora||0).toISOString().slice(0,10);
+          if (!grupos[ds]) grupos[ds] = [];
+          grupos[ds].push(a);
+        });
+        Object.keys(grupos).sort().forEach(ds => {
+          const grpDate = new Date(ds + 'T12:00:00');
+          const ehH = ds === hojeStr;
+          const label = div('agenda-section-label');
+          label.style.cssText = 'font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 8px 2px;display:flex;align-items:center;gap:8px';
+          const diasNome = grpDate.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
+          label.innerHTML = `<span>${diasNome}</span>${ehH ? '<span style="font-size:10px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:4px;padding:1px 6px">hoje</span>' : ''}`;
+          listCard.appendChild(label);
+          grupos[ds].forEach(ag => listCard.appendChild(renderCard(ag)));
+        });
       } else {
-        // Separa "mais cedo" (já passou) de "próximos" se for hoje
-        const passados = isHoje ? lista.filter(a => a.dataHora < agora - 5 * 60000) : [];
-        const futuros = isHoje ? lista.filter(a => a.dataHora >= agora - 5 * 60000) : lista;
-
-        const renderCard = (ag) => {
-          const c = div('agenda-card' + (ag.atendido ? ' atendido' : ''));
-          const dtHora = new Date(ag.dataHora);
-          const horaStr = dtHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-          const diaStr = dtHora.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
-          const diffMs = ag.dataHora - agora;
-          const isIminente = !ag.atendido && diffMs > 0 && diffMs < 3600000;
-          c.innerHTML = `
-            <div class="agenda-card-hora">
-              <div class="agenda-card-hora-val">${horaStr}</div>
-              <div class="agenda-card-hora-dot"></div>
-            </div>
-            <div class="agenda-card-divider"></div>
-            <div class="agenda-card-body">
-              <div class="agenda-nome">${ag.nome || '—'}</div>
-              <div class="agenda-servico">✂ ${ag.servico || '—'}</div>
-              <div class="agenda-meta">
-                <span>${diaStr}</span>
-                ${ag.whatsapp ? `<span>📱 ${formatarWppDisplay(ag.whatsapp)}</span>` : ''}
-                ${isIminente ? `<span style="color:var(--red);font-weight:600">em ${Math.round(diffMs / 60000)}min</span>` : ''}
-              </div>
-              ${ag.obs ? `<div class="agenda-obs">"${ag.obs}"</div>` : ''}
-              <div class="agenda-actions">
-                ${ag.whatsapp ? `<button class="btn-agenda-wpp" onclick="wppClienteOpts('${ag.whatsapp}','${(ag.nome || '').replace(/'/g, "\\'")}','${ag.servico || ''}',${ag.dataHora})">💬 WhatsApp</button>` : ''}
-                <button class="btn-agenda-ok${ag.atendido ? ' done' : ''}" onclick="toggleAtendido('${ag.id}',${!!ag.atendido})">${ag.atendido ? '✓ Atendido' : 'Marcar atendido'}</button>
-                <button class="btn-agenda-del" onclick="excluirAgendamento('${ag.id}')">🗑</button>
-              </div>
-            </div>`;
-          return c;
-        };
-
+        // Modo dia: separa passados/próximos se for hoje
+        const isHojeSel = state._agendaDataStr === hojeStr;
+        const passados = isHojeSel ? lista.filter(a => (a.dataHora||0) < agora - 5*60000) : [];
+        const futuros  = isHojeSel ? lista.filter(a => (a.dataHora||0) >= agora - 5*60000) : lista;
         if (futuros.length > 0) {
-          if (passados.length > 0) {
-            const lbl = div('agenda-section-label'); lbl.textContent = 'Próximos';
-            listCard.appendChild(lbl);
-          }
+          if (passados.length > 0) { const l = div('agenda-section-label'); l.textContent = 'Próximos'; listCard.appendChild(l); }
           futuros.forEach(ag => listCard.appendChild(renderCard(ag)));
         }
-
         if (passados.length > 0) {
-          const lbl = div('agenda-section-label'); lbl.textContent = 'Mais cedo';
-          listCard.appendChild(lbl);
+          const l = div('agenda-section-label'); l.textContent = 'Mais cedo'; listCard.appendChild(l);
           passados.forEach(ag => listCard.appendChild(renderCard(ag)));
         }
       }
