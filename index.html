@@ -266,9 +266,9 @@ details>summary::marker{display:none}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .cal-mes-label{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)}
 .cal-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 14px;font-size:16px;line-height:1}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:16px;width:100%;box-sizing:border-box}
-.cal-dow{text-align:center;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;padding:3px 0;overflow:hidden}
-.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-size:12px;position:relative;border:1px solid transparent;transition:all .15s;min-width:0;overflow:hidden}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:12px;width:100%;box-sizing:border-box;max-width:100%}
+.cal-dow{text-align:center;font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:0;padding:2px 0;overflow:hidden}
+.cal-day{height:32px;max-height:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:5px;cursor:pointer;font-size:11px;position:relative;border:1px solid transparent;transition:all .15s;min-width:0;overflow:hidden}
 .cal-day.vazio{opacity:0}
 .cal-day.passado{color:var(--muted2);cursor:default}
 .cal-day.tem-vagas{background:rgba(201,168,76,.12);border-color:var(--gold-dim);color:var(--gold-light)}
@@ -835,21 +835,25 @@ function saveConfig(){
 async function _pushCortesBooking(){
   if(!state.uid) return;
   try{
-    // Salva config completa do usuário
+    // 1. Salva config completa do usuario
     await setDoc(doc(db,'users',state.uid,'config','main'),{
       cortesLista:state.cortesLista, barbeiros:state.barbeiros,
       barbeiroAtual:state.barbeiroAtual, metas:state.metas,
       nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
       chavePixTipo:state.chavePixTipo, plano:state.plano
     });
-    // Salva também em booking/{uid} para que booking.html leia sem autenticação
+    // 2. Salva em booking/{uid} — lido pelo booking.html sem autenticacao
     await setDoc(doc(db,'booking',state.uid),{
-      cortesLista:state.cortesLista,
-      nomeUsuario:state.nomeUsuario,
-      chavePix:state.chavePix,
-      chavePixTipo:state.chavePixTipo,
-      atualizadoEm:Date.now()
+      cortesLista: state.cortesLista,
+      nomeUsuario: state.nomeUsuario,
+      chavePix: state.chavePix,
+      chavePixTipo: state.chavePixTipo,
+      atualizadoEm: Date.now()
     });
+    // 3. Tambem em admin/config para compatibilidade com versoes antigas do booking
+    const cfgExtra = {cortesPublicos: state.cortesLista, nomePublico: state.nomeUsuario};
+    cfgExtra['cortes_' + state.uid] = state.cortesLista;
+    await setDoc(doc(db,'admin','config'), cfgExtra, {merge:true});
   }catch(e){ console.warn('pushCortesBooking offline:',e.message||e); }
 }
 
@@ -2626,28 +2630,16 @@ let _agendaSubFiltro = 'pendentes';
 
 function iniciarListenerAgendamentos(){
   if(state._unsubAgendamentos) state._unsubAgendamentos();
-  const q = query(
-    collection(db,'agendamentos'),
-    where('uid','==',state.uid||''),
-    orderBy('dataHora','asc')
-  );
+  // Sem where+orderBy combinados para nao exigir indice composto no Firestore
+  const q = query(collection(db,'agendamentos'), orderBy('dataHora','asc'));
   state._unsubAgendamentos = onSnapshot(q, snap => {
-    state.agendamentos = snap.docs.map(d => ({id:d.id,...d.data()}));
-    // Atualiza telas relevantes em tempo real
-    if(state.tela==='agendamentos' || state.tela==='home') render();
+    state.agendamentos = snap.docs
+      .map(d => ({id:d.id,...d.data()}))
+      .filter(a => !a.uid || a.uid === state.uid);
+    // Atualiza home E agenda em tempo real
+    if(state.tela==='home' || state.tela==='agendamentos') render();
     atualizarBadgeClientes();
-  }, e => {
-    // Fallback sem filtro uid (agendamentos antigos sem uid)
-    console.warn('listener agendamentos com uid falhou, tentando sem filtro:', e.message);
-    const q2 = query(collection(db,'agendamentos'), orderBy('dataHora','asc'));
-    state._unsubAgendamentos = onSnapshot(q2, snap => {
-      state.agendamentos = snap.docs
-        .map(d => ({id:d.id,...d.data()}))
-        .filter(a => !a.uid || a.uid === state.uid);
-      if(state.tela==='agendamentos' || state.tela==='home') render();
-      atualizarBadgeClientes();
-    }, e2 => console.error('listener agendamentos:', e2));
-  });
+  }, e => console.error('listener agendamentos:', e));
 }
 
 async function carregarVagas(){
