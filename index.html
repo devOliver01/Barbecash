@@ -266,9 +266,9 @@ details>summary::marker{display:none}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .cal-mes-label{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)}
 .cal-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 14px;font-size:16px;line-height:1}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:16px}
-.cal-dow{text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 0}
-.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:13px;position:relative;border:1px solid transparent;transition:all .15s}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:16px;width:100%;box-sizing:border-box}
+.cal-dow{text-align:center;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;padding:3px 0;overflow:hidden}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-size:12px;position:relative;border:1px solid transparent;transition:all .15s;min-width:0;overflow:hidden}
 .cal-day.vazio{opacity:0}
 .cal-day.passado{color:var(--muted2);cursor:default}
 .cal-day.tem-vagas{background:rgba(201,168,76,.12);border-color:var(--gold-dim);color:var(--gold-light)}
@@ -835,13 +835,21 @@ function saveConfig(){
 async function _pushCortesBooking(){
   if(!state.uid) return;
   try{
+    // Salva config completa do usuário
     await setDoc(doc(db,'users',state.uid,'config','main'),{
       cortesLista:state.cortesLista, barbeiros:state.barbeiros,
       barbeiroAtual:state.barbeiroAtual, metas:state.metas,
       nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
       chavePixTipo:state.chavePixTipo, plano:state.plano
     });
-    await setDoc(doc(db,'admin','config'), {cortesPublicos: state.cortesLista}, {merge:true});
+    // Salva também em booking/{uid} para que booking.html leia sem autenticação
+    await setDoc(doc(db,'booking',state.uid),{
+      cortesLista:state.cortesLista,
+      nomeUsuario:state.nomeUsuario,
+      chavePix:state.chavePix,
+      chavePixTipo:state.chavePixTipo,
+      atualizadoEm:Date.now()
+    });
   }catch(e){ console.warn('pushCortesBooking offline:',e.message||e); }
 }
 
@@ -1283,6 +1291,7 @@ window.toggleAutoLogin=function(){
 // ── RESET STATE ───────────────────────────────────────────────────────────────
 function resetState(){
   if(state._unsubAgendamentos){state._unsubAgendamentos();state._unsubAgendamentos=null;}
+  if(_unsubVagas){_unsubVagas();_unsubVagas=null;}
   state.uid=null;
   state.nomeUsuario='Barbeiro';
   state.registros=[];
@@ -1338,6 +1347,7 @@ onAuthStateChanged(auth,async user=>{
     carregarRascunho();
     if(!state.corteNome) state.pagamento=getPagConfig().padrao;
     iniciarListenerAgendamentos();
+    iniciarListenerVagas();
     renderApp();
     if(state.notifAtiva) setTimeout(()=>mostrarNotifAdmin(state.notifAtiva),1000);
     verificarPopupRenovacao();
@@ -2616,18 +2626,58 @@ let _agendaSubFiltro = 'pendentes';
 
 function iniciarListenerAgendamentos(){
   if(state._unsubAgendamentos) state._unsubAgendamentos();
-  const q = query(collection(db,'agendamentos'), orderBy('dataHora','asc'));
+  const q = query(
+    collection(db,'agendamentos'),
+    where('uid','==',state.uid||''),
+    orderBy('dataHora','asc')
+  );
   state._unsubAgendamentos = onSnapshot(q, snap => {
     state.agendamentos = snap.docs.map(d => ({id:d.id,...d.data()}));
-    if(state.tela==='agendamentos') render();
-  }, e => console.error('listener agendamentos:',e));
+    // Atualiza telas relevantes em tempo real
+    if(state.tela==='agendamentos' || state.tela==='home') render();
+    atualizarBadgeClientes();
+  }, e => {
+    // Fallback sem filtro uid (agendamentos antigos sem uid)
+    console.warn('listener agendamentos com uid falhou, tentando sem filtro:', e.message);
+    const q2 = query(collection(db,'agendamentos'), orderBy('dataHora','asc'));
+    state._unsubAgendamentos = onSnapshot(q2, snap => {
+      state.agendamentos = snap.docs
+        .map(d => ({id:d.id,...d.data()}))
+        .filter(a => !a.uid || a.uid === state.uid);
+      if(state.tela==='agendamentos' || state.tela==='home') render();
+      atualizarBadgeClientes();
+    }, e2 => console.error('listener agendamentos:', e2));
+  });
 }
 
 async function carregarVagas(){
   try{
-    const snap = await getDocs(query(collection(db,'vagas'), orderBy('dataHora','asc')));
+    const snap = await getDocs(query(collection(db,'vagas'), where('uid','==',state.uid||''), orderBy('dataHora','asc')));
     state.vagas = snap.docs.map(d => ({id:d.id,...d.data()}));
-  }catch(e){console.error(e);}
+  }catch(e){
+    // Fallback sem filtro uid (retrocompatibilidade)
+    try{
+      const snap2 = await getDocs(query(collection(db,'vagas'), orderBy('dataHora','asc')));
+      state.vagas = snap2.docs.map(d => ({id:d.id,...d.data()})).filter(v=>!v.uid||v.uid===state.uid);
+    }catch(e2){console.error(e2);}
+  }
+}
+
+// Listener em tempo real para vagas — atualiza calendário e booking automaticamente
+let _unsubVagas = null;
+function iniciarListenerVagas(){
+  if(_unsubVagas) _unsubVagas();
+  const q = query(collection(db,'vagas'), orderBy('dataHora','asc'));
+  _unsubVagas = onSnapshot(q, snap => {
+    // Filtra apenas vagas do usuário atual
+    state.vagas = snap.docs
+      .map(d => ({id:d.id,...d.data()}))
+      .filter(v => !v.uid || v.uid === state.uid);
+    // Atualiza calendário se modal estiver aberto
+    renderCalVagas();
+    // Atualiza home se tela ativa for agendamentos
+    if(state.tela==='agendamentos') render();
+  }, e => console.error('listener vagas:',e));
 }
 
 // ── RENDER AGENDAMENTOS ───────────────────────────────────────────────────────
@@ -3138,7 +3188,9 @@ function renderCalVagas(){
 window.renderCalVagas = renderCalVagas;
 
 window.abrirModalVagas = async function(){
-  await carregarVagas();
+  // Vagas já estão atualizadas pelo listener em tempo real
+  // carregarVagas apenas se o listener ainda não inicializou
+  if(!state.vagas || state.vagas.length === 0) await carregarVagas();
   _calVagasMes = new Date().getMonth();
   _calVagasAno = new Date().getFullYear();
   _calVagasDiaSel = null;
