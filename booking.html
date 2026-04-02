@@ -207,11 +207,14 @@ async function init() {
   // Fonte 2 (fallback): users/{uid}/config/main
   // Fonte 3 (fallback sem uid): admin/config.cortesPublicos
 
+  // ── 2. Listener de SERVIÇOS — mesma estratégia das vagas ────────────────────
+  // Fonte primária: barbeiros/{uid} — coleção raiz pública, sem autenticação
+  // Escrita pelo index.html a cada alteração em Gerenciar Serviços
+
   function aplicarServicos(lista, nomeUsuario){
     if(!lista || !lista.length) return false;
     S.servicos = lista;
     if(nomeUsuario) atualizarHero(nomeUsuario, S.cfg);
-    // Remove seleção se serviço foi excluído
     if(S.sel.servico && !lista.find(s => s.nome === S.sel.servico.nome)){
       S.sel.servico = null;
     }
@@ -220,44 +223,41 @@ async function init() {
   }
 
   if(S.uidBarbeiro){
-    // Listener primário: booking/{uid} — atualiza instantâneo ao alterar serviços no index
-    onSnapshot(doc(db,'booking', S.uidBarbeiro), snap => {
+    // Listener principal: barbeiros/{uid} — atualiza igual às vagas, sem bloqueio de auth
+    onSnapshot(doc(db,'barbeiros', S.uidBarbeiro), snap => {
       if(!snap.exists()) return;
       const d = snap.data();
       aplicarServicos(d.cortesLista, d.nomeUsuario);
-    });
-
-    // Listener secundário: users/{uid}/config/main — fallback e fonte inicial
-    onSnapshot(doc(db,'users', S.uidBarbeiro, 'config', 'main'), snap => {
-      if(!snap.exists()) return;
-      const d = snap.data();
-      // Só aplica se booking/{uid} ainda não trouxe dados
-      if(!S.servicos.length) aplicarServicos(d.cortesLista, d.nomeUsuario);
-      // Atualiza nome/cfg extra
-      if(d.nomeUsuario && !S.cfg.nomeBarbearia) atualizarHero(d.nomeUsuario, S.cfg);
       if(d.whatsapp) S.cfg.whatsapp = d.whatsapp;
     });
 
-    // Carga inicial rápida (antes dos listeners responderem)
+    // Carga inicial rápida antes do listener responder
     try {
-      const bookSnap = await getDoc(doc(db,'booking', S.uidBarbeiro));
-      if(bookSnap.exists()) aplicarServicos(bookSnap.data().cortesLista, bookSnap.data().nomeUsuario);
-      if(!S.servicos.length){
+      const snap = await getDoc(doc(db,'barbeiros', S.uidBarbeiro));
+      if(snap.exists()) aplicarServicos(snap.data().cortesLista, snap.data().nomeUsuario);
+    } catch(e){ console.warn('carga barbeiros:', e); }
+
+    // Fallback: users/{uid}/config/main se barbeiros ainda sem dados
+    if(!S.servicos.length){
+      try {
         const cfgSnap = await getDoc(doc(db,'users', S.uidBarbeiro, 'config', 'main'));
-        if(cfgSnap.exists()) aplicarServicos(cfgSnap.data().cortesLista, cfgSnap.data().nomeUsuario);
-      }
-    } catch(e){ console.warn('carga inicial servicos:', e); }
+        if(cfgSnap.exists()){
+          const d = cfgSnap.data();
+          aplicarServicos(d.cortesLista, d.nomeUsuario);
+          if(d.whatsapp) S.cfg.whatsapp = d.whatsapp;
+        }
+      } catch(e){ console.warn('fallback config:', e); }
+    }
 
   } else {
-    // Sem uid — fallback: admin/config
+    // Sem uid: admin/config como fallback
     onSnapshot(doc(db,'admin','config'), snap => {
       if(!snap.exists()) return;
-      const d = snap.data();
-      aplicarServicos(d.cortesPublicos, '');
+      aplicarServicos(snap.data().cortesPublicos, '');
     });
   }
 
-  // Fallback padrão se nenhum listener trouxer dados em 3s
+  // Padrão se nenhuma fonte trouxer dados em 3s
   setTimeout(()=>{
     if(!S.servicos.length){
       S.servicos = [{nome:'Corte Simples',preco:35},{nome:'Degradê',preco:45},{nome:'Barba',preco:30},{nome:'Corte + Barba',preco:70}];

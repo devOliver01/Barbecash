@@ -834,27 +834,30 @@ function saveConfig(){
 // Envia cortes para o booking em tempo real (separado do sync de registros)
 async function _pushCortesBooking(){
   if(!state.uid) return;
+
+  const payload = {
+    cortesLista:  state.cortesLista,
+    nomeUsuario:  state.nomeUsuario,
+    chavePix:     state.chavePix,
+    chavePixTipo: state.chavePixTipo,
+    atualizadoEm: Date.now()
+  };
+
+  // 1. Config completa do usuario autenticado
   try{
-    // 1. Salva config completa do usuario
     await setDoc(doc(db,'users',state.uid,'config','main'),{
       cortesLista:state.cortesLista, barbeiros:state.barbeiros,
       barbeiroAtual:state.barbeiroAtual, metas:state.metas,
       nomeUsuario:state.nomeUsuario, chavePix:state.chavePix,
       chavePixTipo:state.chavePixTipo, plano:state.plano
     });
-    // 2. Salva em booking/{uid} — lido pelo booking.html sem autenticacao
-    await setDoc(doc(db,'booking',state.uid),{
-      cortesLista: state.cortesLista,
-      nomeUsuario: state.nomeUsuario,
-      chavePix: state.chavePix,
-      chavePixTipo: state.chavePixTipo,
-      atualizadoEm: Date.now()
-    });
-    // 3. Tambem em admin/config para compatibilidade com versoes antigas do booking
-    const cfgExtra = {cortesPublicos: state.cortesLista, nomePublico: state.nomeUsuario};
-    cfgExtra['cortes_' + state.uid] = state.cortesLista;
-    await setDoc(doc(db,'admin','config'), cfgExtra, {merge:true});
-  }catch(e){ console.warn('pushCortesBooking offline:',e.message||e); }
+  }catch(e){ console.warn('pushCortesBooking config:', e.message||e); }
+
+  // 2. Coleção raiz publica "barbeiros/{uid}" — mesma estrategia das vagas
+  // Leitura publica sem autenticacao, escrita so pelo dono autenticado
+  try{
+    await setDoc(doc(db,'barbeiros',state.uid), payload);
+  }catch(e){ console.warn('pushCortesBooking barbeiros:', e.message||e); }
 }
 
 // ── ADMIN CONFIG ──────────────────────────────────────────────────────────────
