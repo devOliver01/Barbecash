@@ -3963,48 +3963,63 @@
       }
       wrap.appendChild(cards);
 
-      // ── Próximos agendamentos — todos do DIA ──
+      // ── Próximos agendamentos (não atendidos, mais próximos a partir de agora) ──
       const agora = Date.now();
       const hojeStr = today();
-      // Agendamentos de hoje não atendidos
-      const agHoje = state.agendamentos
+
+      // Pega todos não atendidos a partir de agora (inclui hoje e dias futuros)
+      const agProximos = state.agendamentos
+        .filter(a => !a.atendido && (a.dataHora || 0) >= agora - 5 * 60000)
+        .map(a => ({ ...a, _ts: a.dataHora || 0 }))
+        .sort((a, b) => a._ts - b._ts);
+
+      // Também pega os de hoje que já passaram (para mostrar como "passou")
+      const agHojePasso = state.agendamentos
         .filter(a => {
           if (a.atendido) return false;
-          const dt = new Date(a.dataHora || 0);
-          return dt.toISOString().slice(0, 10) === hojeStr;
+          const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
+          return dStr === hojeStr && (a.dataHora || 0) < agora - 5 * 60000;
         })
         .map(a => ({ ...a, _ts: a.dataHora || 0 }))
         .sort((a, b) => a._ts - b._ts);
 
-      // Quantos mostrar por padrão
-      const MAX_PROX = 3;
-      const proxVisiveis = state._proxExpandido ? agHoje : agHoje.slice(0, MAX_PROX);
+      const agExibir = [...agHojePasso, ...agProximos];
+
+      const MAX_PROX = 4;
+      const proxVisiveis = state._proxExpandido ? agExibir : agExibir.slice(0, MAX_PROX);
 
       const proxHeader = div('home-section-header');
       const btnVerAgenda = document.createElement('button');
       btnVerAgenda.className = 'home-section-link'; btnVerAgenda.textContent = 'Ver agenda →';
       btnVerAgenda.onclick = () => irTela('agendamentos', document.getElementById('nav-agendamentos'));
-      proxHeader.innerHTML = `<div class="home-section-title">📅 Hoje (${agHoje.length})</div>`;
+      proxHeader.innerHTML = `<div class="home-section-title">📅 Próximos (${agExibir.length})</div>`;
       proxHeader.appendChild(btnVerAgenda);
       wrap.appendChild(proxHeader);
 
-      if (agHoje.length === 0) {
+      if (agExibir.length === 0) {
         const vz = div(''); vz.style.cssText = 'text-align:center;color:var(--muted);padding:24px 0;font-size:13px';
-        vz.innerHTML = '<div style="font-size:28px;margin-bottom:8px">📅</div>Nenhum agendamento para hoje';
+        vz.innerHTML = '<div style="font-size:28px;margin-bottom:8px">📅</div>Nenhum agendamento próximo';
         wrap.appendChild(vz);
       } else {
         proxVisiveis.forEach(ag => {
           const diffMin = Math.round((ag._ts - agora) / 60000);
+          const dtAg = new Date(ag._ts);
+          const horaStr = dtAg.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          const diaAgStr = dtAg.toISOString().slice(0, 10);
+          const isHojeAg = diaAgStr === hojeStr;
+          const diaLabel = isHojeAg ? 'hoje'
+            : dtAg.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
           let badgeHtml = '';
-          if (diffMin <= 30 && diffMin >= -5) badgeHtml = `<div class="prox-badge badge-iminente">em ${diffMin <= 0 ? 'agora' : diffMin + 'min'}</div>`;
+          if (diffMin <= 0 && diffMin >= -5) badgeHtml = `<div class="prox-badge badge-iminente">agora</div>`;
+          else if (diffMin > 0 && diffMin <= 30) badgeHtml = `<div class="prox-badge badge-iminente">em ${diffMin}min</div>`;
           else if (diffMin < -5) badgeHtml = `<div class="prox-badge" style="background:rgba(119,119,119,.15);color:var(--muted)">passou</div>`;
           else badgeHtml = `<div class="prox-badge badge-hoje-conf">confirmado</div>`;
-          const dt = new Date(ag._ts);
-          const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
           const item = div('prox-item');
           item.style.cursor = 'pointer';
           item.innerHTML = `
-        <div class="prox-hora"><div class="prox-hora-val">${horaStr}</div><div class="prox-hora-label">hoje</div></div>
+        <div class="prox-hora"><div class="prox-hora-val">${horaStr}</div><div class="prox-hora-label">${diaLabel}</div></div>
         <div class="prox-divider"></div>
         <div class="prox-info"><div class="prox-nome">${ag.nome || '—'}</div><div class="prox-servico">✂ ${ag.servico || '—'}</div></div>
         ${badgeHtml}`;
@@ -4012,119 +4027,97 @@
           wrap.appendChild(item);
         });
 
-        // Botão "ver todos do dia" se houver mais que MAX_PROX
-        if (agHoje.length > MAX_PROX) {
+        if (agExibir.length > MAX_PROX) {
           const btnTodos = document.createElement('button');
           btnTodos.style.cssText = 'width:100%;margin-top:6px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:"DM Sans",sans-serif;transition:all .2s';
           btnTodos.textContent = state._proxExpandido
             ? '▲ Mostrar menos'
-            : `▼ Ver todos do dia (${agHoje.length - MAX_PROX} a mais)`;
+            : `▼ Ver todos (${agExibir.length - MAX_PROX} a mais)`;
           btnTodos.onclick = () => { state._proxExpandido = !state._proxExpandido; render(); };
           wrap.appendChild(btnTodos);
         }
       }
 
-      // ── Semana — agendamentos FUTUROS deste mês ──
-      const semHeader = div('home-section-header'); semHeader.style.marginTop = '16px';
-      semHeader.innerHTML = `<div class="home-section-title">🗓 Este mês</div>`;
+      // ── Estatísticas de agendamentos — semana e mês ──
+      const semHeader = div('home-section-header'); semHeader.style.marginTop = '20px';
+      semHeader.innerHTML = `<div class="home-section-title">📊 Painel de Agendamentos</div>`;
       wrap.appendChild(semHeader);
 
-      // Agendamentos futuros não atendidos no mês atual
+      // Cálculos
+      const inicioSemana = new Date(); inicioSemana.setHours(0,0,0,0);
+      const diaSem = inicioSemana.getDay();
+      inicioSemana.setDate(inicioSemana.getDate() - diaSem); // domingo
+      const fimSemana = new Date(inicioSemana); fimSemana.setDate(fimSemana.getDate() + 6); fimSemana.setHours(23,59,59,999);
       const [mIni, mFim] = monthRange();
-      const agMes = state.agendamentos
-        .filter(a => {
-          if (a.atendido) return false;
-          const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
-          return dStr >= hojeStr && dStr >= mIni && dStr <= mFim;
-        })
-        .map(a => ({ ...a, _ts: a.dataHora || 0 }))
-        .sort((a, b) => a._ts - b._ts);
 
-      if (agMes.length === 0) {
-        const vz2 = div(''); vz2.style.cssText = 'text-align:center;color:var(--muted);padding:16px 0;font-size:13px';
-        vz2.innerHTML = 'Nenhum agendamento futuro neste mês';
-        wrap.appendChild(vz2);
-      } else {
-        // Agrupa por dia
-        const porDiaAg = {};
-        agMes.forEach(a => {
-          const dStr = new Date(a._ts).toISOString().slice(0, 10);
-          if (!porDiaAg[dStr]) porDiaAg[dStr] = [];
-          porDiaAg[dStr].push(a);
-        });
+      const agSemPend = state.agendamentos.filter(a => {
+        if (a.atendido) return false;
+        const ts = a.dataHora || 0;
+        return ts >= inicioSemana.getTime() && ts <= fimSemana.getTime();
+      }).length;
 
-        // Mostra os próximos 7 dias com agendamentos, depois um resumo numérico
-        const diasComAg = Object.keys(porDiaAg).sort();
-        const diasVisiveis = state._mesExpandido ? diasComAg : diasComAg.slice(0, 5);
+      const agMesPend = state.agendamentos.filter(a => {
+        if (a.atendido) return false;
+        const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
+        return dStr >= hojeStr && dStr >= mIni && dStr <= mFim;
+      }).length;
 
-        diasVisiveis.forEach(dStr => {
-          const lista = porDiaAg[dStr];
-          const dtObj = new Date(dStr + 'T12:00:00');
-          const diaLabel = dtObj.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
-          const isHoje = dStr === hojeStr;
+      const agMesTotalAtend = state.agendamentos.filter(a => {
+        if (!a.atendido) return false;
+        const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
+        return dStr >= mIni && dStr <= mFim;
+      }).length;
 
-          const bloco = div('');
-          bloco.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden';
+      const agHojeTodos = state.agendamentos.filter(a => {
+        const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
+        return dStr === hojeStr;
+      });
+      const agHojeAtend = agHojeTodos.filter(a => a.atendido).length;
+      const agHojePend = agHojeTodos.filter(a => !a.atendido).length;
+      const taxaHoje = agHojeTodos.length > 0 ? Math.round((agHojeAtend / agHojeTodos.length) * 100) : 0;
 
-          // Header do dia clicável (toggle)
-          const diaKey = 'agmes_' + dStr;
-          if (typeof state[diaKey] === 'undefined') state[diaKey] = isHoje; // hoje abre por padrão
-          const diaHead = div('');
-          diaHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--surface)';
-          diaHead.innerHTML = `
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;color:${isHoje ? 'var(--gold)' : 'var(--text)'};font-weight:600;text-transform:capitalize">${diaLabel}</span>
-              ${isHoje ? '<span style="font-size:10px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:4px;padding:1px 6px">hoje</span>' : ''}
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:11px;font-family:\'Playfair Display\',serif;color:var(--gold)">${lista.length}</span>
-              <span style="font-size:13px;color:var(--muted);transition:transform .2s" id="arr-${dStr}">${state[diaKey] ? '▾' : '▸'}</span>
-            </div>`;
-          diaHead.onclick = () => {
-            state[diaKey] = !state[diaKey];
-            const body = document.getElementById('agmesBody-' + dStr);
-            const arr = document.getElementById('arr-' + dStr);
-            if (body) body.style.display = state[diaKey] ? '' : 'none';
-            if (arr) arr.textContent = state[diaKey] ? '▾' : '▸';
-          };
+      // Próximo após agora (para o banner de destaque)
+      const proximoReal = agProximos[0] || null;
 
-          const diaBody = div('');
-          diaBody.id = 'agmesBody-' + dStr;
-          diaBody.style.cssText = `padding:0 14px 10px;display:${state[diaKey] ? '' : 'none'}`;
+      const painelCard = div('');
+      painelCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px';
 
-          lista.forEach(ag => {
-            const horaStr = new Date(ag._ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const row = div('');
-            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)';
-            row.innerHTML = `
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-family:\'Playfair Display\',serif;font-size:15px;color:var(--gold);min-width:38px">${horaStr}</span>
-                <div>
-                  <div style="font-size:13px">${ag.nome || '—'}</div>
-                  <div style="font-size:11px;color:var(--muted)">✂ ${ag.servico || '—'}</div>
-                </div>
-              </div>`;
-            row.style.cursor = 'pointer';
-            row.onclick = () => irTela('agendamentos', document.getElementById('nav-agendamentos'));
-            diaBody.appendChild(row);
-          });
+      // Grid de estatísticas
+      painelCard.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);margin-bottom:2px">${agHojePend}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes hoje</div>
+            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">${agHojeAtend} atendido${agHojeAtend !== 1 ? 's' : ''}</div>` : ''}
+          </div>
+          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--blue);margin-bottom:2px">${agSemPend}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes semana</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">${diaSem === 0 ? 'dom' : diaSem === 1 ? 'seg' : diaSem === 2 ? 'ter' : diaSem === 3 ? 'qua' : diaSem === 4 ? 'qui' : diaSem === 5 ? 'sex' : 'sáb'} → sáb</div>
+          </div>
+          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--orange);margin-bottom:2px">${agMesPend}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes no mês</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">a partir de hoje</div>
+          </div>
+          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--green);margin-bottom:2px">${agMesTotalAtend}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Atendidos no mês</div>
+            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">hoje: ${taxaHoje}% taxa</div>` : ''}
+          </div>
+        </div>
+        ${proximoReal ? `
+        <div style="background:linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.03));border:1px solid var(--gold-dim);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="irTela('agendamentos',document.getElementById('nav-agendamentos'))">
+          <div style="flex-shrink:0;width:44px;height:44px;border-radius:10px;background:rgba(201,168,76,.15);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;color:var(--gold)">${new Date(proximoReal._ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600">${proximoReal.nome || '—'}</div>
+            <div style="font-size:11px;color:var(--muted)">✂ ${proximoReal.servico || '—'} · próximo na fila</div>
+          </div>
+          <div style="font-size:11px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:6px;padding:3px 8px">próximo ›</div>
+        </div>` : `
+        <div style="text-align:center;padding:12px 0;color:var(--muted);font-size:13px">✅ Nenhum agendamento pendente próximo</div>`}`;
 
-          bloco.appendChild(diaHead);
-          bloco.appendChild(diaBody);
-          wrap.appendChild(bloco);
-        });
-
-        // Botão ver mais dias
-        if (diasComAg.length > 5) {
-          const btnMes = document.createElement('button');
-          btnMes.style.cssText = 'width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:"DM Sans",sans-serif;margin-bottom:8px';
-          btnMes.textContent = state._mesExpandido
-            ? '▲ Mostrar menos'
-            : `▼ Ver mais dias (${diasComAg.length - 5} a mais)`;
-          btnMes.onclick = () => { state._mesExpandido = !state._mesExpandido; render(); };
-          wrap.appendChild(btnMes);
-        }
-      }
+      wrap.appendChild(painelCard);
 
       frag.appendChild(wrap);
       return frag;
@@ -5444,13 +5437,22 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
     // ── AGENDAMENTOS (tempo real) ─────────────────────────────────────────────────
     let _agendaSubFiltro = 'pendentes';
 
+    // Normaliza dataHora: Firestore Timestamp → número (ms)
+    function normTs(val) {
+      if (!val) return 0;
+      if (typeof val === 'number') return val;
+      if (val && typeof val === 'object' && typeof val.seconds === 'number') return val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1e6);
+      if (val && typeof val.toMillis === 'function') return val.toMillis();
+      return Number(val) || 0;
+    }
+
     function iniciarListenerAgendamentos() {
       if (state._unsubAgendamentos) state._unsubAgendamentos();
       // Sem where+orderBy combinados para nao exigir indice composto no Firestore
       const q = query(collection(db, 'agendamentos'), orderBy('dataHora', 'asc'));
       state._unsubAgendamentos = onSnapshot(q, snap => {
         state.agendamentos = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
+          .map(d => { const data = d.data(); return { id: d.id, ...data, dataHora: normTs(data.dataHora), criadoEm: normTs(data.criadoEm) }; })
           .filter(a => !a.uid || a.uid === state.uid);
         // Atualiza home E agenda em tempo real
         if (state.tela === 'home' || state.tela === 'agendamentos') render();
