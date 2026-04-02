@@ -4618,35 +4618,117 @@
       return card;
     }
 
+    // Calcula período anterior para comparativo
+    function calcularPeriodoAnterior(periodo) {
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      if (periodo === 'hoje') {
+        const ontem = new Date(hoje); ontem.setDate(ontem.getDate()-1);
+        const ontemStr = ontem.toISOString().slice(0,10);
+        return state.registros.filter(r => r.data === ontemStr && r.barbeiro === state.barbeiroAtual);
+      }
+      if (periodo === 'semana') {
+        const base = new Date(hoje); base.setDate(base.getDate()-base.getDay());
+        const baseAnterior = new Date(base); baseAnterior.setDate(baseAnterior.getDate()-7);
+        const fimAnterior = new Date(base); fimAnterior.setDate(fimAnterior.getDate()-1);
+        const baStr = baseAnterior.toISOString().slice(0,10);
+        const faStr = fimAnterior.toISOString().slice(0,10);
+        return state.registros.filter(r => r.data >= baStr && r.data <= faStr && r.barbeiro === state.barbeiroAtual);
+      }
+      if (periodo === 'mes') {
+        const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+        const mAniStr = mesAnterior.toISOString().slice(0,7);
+        return state.registros.filter(r => r.data && r.data.slice(0,7) === mAniStr && r.barbeiro === state.barbeiroAtual);
+      }
+      return [];
+    }
+
     function renderHistorico() {
       const frag = document.createDocumentFragment();
       const periodoCard = div('card'); periodoCard.appendChild(renderPeriodoRow());
       const filtrados = filtrar(state.registros, state.periodo, state.barbeiroAtual);
       const total = filtrados.reduce((s, r) => s + r.valor, 0);
       const gorjTotal = filtrados.reduce((s, r) => s + (r.gorjeta || 0), 0);
+      const totalGeral = total + gorjTotal;
+      const ticketMedio = filtrados.length ? total / filtrados.length : 0;
+
+      // Comparativo com período anterior
+      const anterior = calcularPeriodoAnterior(state.periodo);
+      const totalAnterior = anterior.reduce((s,r) => s + r.valor + (r.gorjeta||0), 0);
+      let comparativoHtml = '';
+      if (totalAnterior > 0 && state.periodo !== 'tudo') {
+        const diff = Math.round(((totalGeral - totalAnterior) / totalAnterior) * 100);
+        const cor = diff >= 0 ? 'var(--green)' : 'var(--red)';
+        const seta = diff >= 0 ? '▲' : '▼';
+        const labelAnt = {hoje:'ontem',semana:'semana passada',mes:'mês passado'}[state.periodo] || '';
+        comparativoHtml = `<div style="margin-top:8px;background:rgba(0,0,0,.3);border-radius:8px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;font-size:11px"><span style="color:var(--muted)">vs. ${labelAnt} (${brl(totalAnterior)})</span><span style="color:${cor};font-weight:600">${seta} ${Math.abs(diff)}%</span></div>`;
+      }
+
       const pagGroup = { pix: 0, dinheiro: 0, cartao: 0 };
       filtrados.forEach(r => pagGroup[r.pagamento || 'pix'] += r.valor + (r.gorjeta || 0));
+      const pagTotal = totalGeral || 1;
+
+      // Barras de pagamento
+      const barrasPag = [
+        { nome: '◈ Pix', val: pagGroup.pix, cor: 'var(--blue)' },
+        { nome: '$ Dinheiro', val: pagGroup.dinheiro, cor: 'var(--green)' },
+        { nome: '💳 Cartão', val: pagGroup.cartao, cor: '#c97de8' },
+      ].filter(p => p.val > 0).map(p => {
+        const pct = Math.round((p.val / pagTotal) * 100);
+        return `<div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+            <span style="color:var(--text)">${p.nome}</span>
+            <span style="color:var(--gold)">${brl(p.val)} · ${pct}%</span>
+          </div>
+          <div style="background:#0a0a0a;border-radius:3px;height:6px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${p.cor}88,${p.cor});border-radius:3px"></div>
+          </div>
+        </div>`;
+      }).join('');
+
       const banner = div('');
-      banner.innerHTML = `<div class="total-banner"><div class="total-banner-label">Faturamento do período</div><div class="total-banner-val">${brl(total)}</div><div class="total-banner-sub"><span>✂ ${filtrados.length} corte(s)</span><span style="color:var(--green)">+ ${brl(gorjTotal)} gorjeta</span></div></div><div class="pag-breakdown"><div class="pag-item"><div class="pag-item-val"><span class="pag-dot" style="background:var(--blue)"></span>${brl(pagGroup.pix)}</div><div class="pag-item-label">Pix</div></div><div class="pag-item"><div class="pag-item-val"><span class="pag-dot" style="background:var(--green)"></span>${brl(pagGroup.dinheiro)}</div><div class="pag-item-label">Dinheiro</div></div><div class="pag-item"><div class="pag-item-val"><span class="pag-dot" style="background:#c97de8"></span>${brl(pagGroup.cartao)}</div><div class="pag-item-label">💳 Cartão</div></div></div>`;
+      banner.innerHTML = `
+        <div class="total-banner">
+          <div class="total-banner-label">Faturamento do período</div>
+          <div class="total-banner-val">${brl(totalGeral)}</div>
+          <div class="total-banner-sub">
+            <span>✂ ${filtrados.length} corte(s)</span>
+            <span style="color:var(--green)">+ ${brl(gorjTotal)} gorjeta</span>
+            <span style="color:var(--muted)">ticket médio ${brl(ticketMedio)}</span>
+          </div>
+          ${comparativoHtml}
+        </div>
+        ${barrasPag ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">${barrasPag}</div>` : ''}`;
       periodoCard.appendChild(banner);
 
-      // Botão Relatório — exporta direto sem tela intermediária
+      // Botões de exportação
       if (filtrados.length > 0) {
         const botoesRel = div('');
-        botoesRel.style.cssText = 'display:flex;gap:8px;margin-top:12px';
+        botoesRel.style.cssText = 'display:flex;gap:6px;margin-top:12px;flex-wrap:wrap';
 
         const btnRend = document.createElement('button');
-        btnRend.style.cssText = 'flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
-        btnRend.innerHTML = '📊 Relatório de Rendimento';
+        btnRend.style.cssText = 'flex:1;min-width:120px;padding:11px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--gold);font-size:11px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:5px';
+        btnRend.innerHTML = '📊 Rendimento';
         btnRend.onclick = () => exportarRendimento(filtrados, total, gorjTotal);
 
         const btnPdf = document.createElement('button');
-        btnPdf.style.cssText = 'flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
-        btnPdf.innerHTML = '📄 Exportar PDF';
+        btnPdf.style.cssText = 'flex:1;min-width:80px;padding:11px 6px;background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.2);border-radius:12px;color:var(--red);font-size:11px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:5px';
+        btnPdf.innerHTML = '📄 PDF';
         btnPdf.onclick = () => exportarPDF(filtrados, total, gorjTotal);
+
+        const btnCsv = document.createElement('button');
+        btnCsv.style.cssText = 'flex:1;min-width:80px;padding:11px 6px;background:rgba(76,175,120,.1);border:1px solid rgba(76,175,120,.2);border-radius:12px;color:var(--green);font-size:11px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:5px';
+        btnCsv.innerHTML = '📊 CSV';
+        btnCsv.onclick = () => exportarCSV(filtrados);
+
+        const btnWpp = document.createElement('button');
+        btnWpp.style.cssText = 'flex:1;min-width:80px;padding:11px 6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:12px;color:#25D366;font-size:11px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:5px';
+        btnWpp.innerHTML = '💬 WhatsApp';
+        btnWpp.onclick = () => exportarWhatsApp(filtrados, total, gorjTotal);
 
         botoesRel.appendChild(btnRend);
         botoesRel.appendChild(btnPdf);
+        botoesRel.appendChild(btnCsv);
+        botoesRel.appendChild(btnWpp);
         periodoCard.appendChild(botoesRel);
       }
 
@@ -4700,116 +4782,245 @@
     // ── RELATÓRIO ─────────────────────────────────────────────────────────────────
     function renderRelatorio() {
       const frag = document.createDocumentFragment();
-      // Relatório liberado para todos os usuários
       const filtrados = filtrar(state.registros, state.periodo, state.barbeiroAtual);
-      const total = filtrados.reduce((s, r) => s + r.valor, 0); const gorjTotal = filtrados.reduce((s, r) => s + (r.gorjeta || 0), 0);
-      const topCard = div('card'); topCard.appendChild(renderPeriodoRow());
-      const banner = div(''); banner.innerHTML = `<div class="total-banner"><div class="total-banner-label">Faturamento total</div><div class="total-banner-val">${brl(total + gorjTotal)}</div><div class="total-banner-sub"><span>Serviços: ${brl(total)}</span><span style="color:var(--green)">Gorjetas: ${brl(gorjTotal)}</span></div></div>`; topCard.appendChild(banner);
-      const metaKey = { hoje: 'dia', semana: 'sem', mes: 'mes', tudo: null }[state.periodo]; const metaVal = metaKey ? state.metas[metaKey] : 0;
-      if (metaVal > 0) { const pct = Math.min(100, Math.round(((total + gorjTotal) / metaVal) * 100)); const mb = div('meta-bar-wrap'); mb.innerHTML = `<div class="meta-header"><span class="meta-label">Meta: ${brl(metaVal)}</span><span class="meta-pct">${pct}%</span></div><div class="meta-track"><div class="meta-fill${pct >= 100 ? ' done' : ''}" style="width:${pct}%"></div></div>`; topCard.appendChild(mb); }
-      // Botão exportar PDF
-      const btnPdf = document.createElement('button'); btnPdf.className = 'btn-export'; btnPdf.innerHTML = '📄 Exportar Relatório PDF';
-      btnPdf.onclick = () => exportarPDF(filtrados, total, gorjTotal); topCard.appendChild(btnPdf);
+      const total = filtrados.reduce((s, r) => s + r.valor, 0);
+      const gorjTotal = filtrados.reduce((s, r) => s + (r.gorjeta || 0), 0);
+      const totalGeral = total + gorjTotal;
+      const ticketMedio = filtrados.length ? total / filtrados.length : 0;
+
+      const topCard = div('card');
+      topCard.appendChild(renderPeriodoRow());
+
+      // Comparativo
+      const anterior = calcularPeriodoAnterior(state.periodo);
+      const totalAnt = anterior.reduce((s,r) => s+r.valor+(r.gorjeta||0), 0);
+      let compHtml = '';
+      if (totalAnt > 0 && state.periodo !== 'tudo') {
+        const diff = Math.round(((totalGeral-totalAnt)/totalAnt)*100);
+        const cor = diff >= 0 ? 'var(--green)' : 'var(--red)';
+        const seta = diff >= 0 ? '▲' : '▼';
+        const labelAnt = {hoje:'ontem',semana:'semana passada',mes:'mês passado'}[state.periodo]||'';
+        compHtml = `<div style="margin-top:8px;background:rgba(0,0,0,.3);border-radius:8px;padding:7px 12px;display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--muted)">vs. ${labelAnt} (${brl(totalAnt)})</span><span style="color:${cor};font-weight:600">${seta} ${diff>=0?'+':''}${diff}%</span></div>`;
+      }
+
+      const banner = div('');
+      banner.innerHTML = `<div class="total-banner">
+        <div class="total-banner-label">Faturamento total</div>
+        <div class="total-banner-val">${brl(totalGeral)}</div>
+        <div class="total-banner-sub">
+          <span>Serviços: ${brl(total)}</span>
+          <span style="color:var(--green)">Gorjetas: ${brl(gorjTotal)}</span>
+          <span style="color:var(--muted)">Ticket médio: ${brl(ticketMedio)}</span>
+        </div>
+        ${compHtml}
+      </div>`;
+      topCard.appendChild(banner);
+
+      const metaKey = { hoje: 'dia', semana: 'sem', mes: 'mes', tudo: null }[state.periodo];
+      const metaVal = metaKey ? state.metas[metaKey] : 0;
+      if (metaVal > 0) {
+        const pct = Math.min(100, Math.round(((totalGeral) / metaVal) * 100));
+        const mb = div('meta-bar-wrap');
+        mb.innerHTML = `<div class="meta-header"><span class="meta-label">Meta: ${brl(metaVal)}</span><span class="meta-pct">${pct}%</span></div><div class="meta-track"><div class="meta-fill${pct >= 100 ? ' done' : ''}" style="width:${pct}%"></div></div>`;
+        topCard.appendChild(mb);
+      }
+
+      // Botões exportação
+      if (filtrados.length > 0) {
+        const botoesRel = div('');
+        botoesRel.style.cssText = 'display:flex;gap:6px;margin-top:12px;flex-wrap:wrap';
+        [
+          ['📄 PDF','rgba(224,85,85,.1)','rgba(224,85,85,.2)','var(--red)',() => exportarPDF(filtrados,total,gorjTotal)],
+          ['📊 CSV','rgba(76,175,120,.1)','rgba(76,175,120,.2)','var(--green)',() => exportarCSV(filtrados)],
+          ['💬 WhatsApp','rgba(37,211,102,.1)','rgba(37,211,102,.2)','#25D366',() => exportarWhatsApp(filtrados,total,gorjTotal)],
+        ].forEach(([label,bg,border,color,fn]) => {
+          const btn = document.createElement('button');
+          btn.style.cssText = `flex:1;min-width:80px;padding:10px 6px;background:${bg};border:1px solid ${border};border-radius:12px;color:${color};font-size:11px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif`;
+          btn.textContent = label;
+          btn.onclick = fn;
+          botoesRel.appendChild(btn);
+        });
+        topCard.appendChild(botoesRel);
+      }
+
       frag.appendChild(topCard);
-      if (!filtrados.length) { const v = div('vazio'); v.innerHTML = `<div class="vazio-icon">📋</div>Nenhum dado neste período`; frag.appendChild(v); return frag; }
-      const map = {}; filtrados.forEach(r => { if (!map[r.corte]) map[r.corte] = { qtd: 0, total: 0 }; map[r.corte].qtd++; map[r.corte].total += r.valor; });
-      const porCorte = Object.entries(map).sort((a, b) => b[1].total - a[1].total); const maxT = porCorte[0][1].total || 1;
-      const barCard = div('card'); barCard.innerHTML = `<div class="card-title">Por Serviço</div>`;
-      porCorte.forEach(([nome, info]) => { const pct = Math.round((info.total / maxT) * 100); const row = div('barra-row'); row.innerHTML = `<div class="barra-info"><span class="barra-nome">${nome}</span><span class="barra-qtd">${info.qtd}x</span></div><div class="barra-track"><div class="barra-fill" style="width:${pct}%"></div></div><div class="barra-val">${brl(info.total)}</div>`; barCard.appendChild(row); }); frag.appendChild(barCard);
-      const pagMap = { pix: 0, dinheiro: 0, cartao: 0 }; filtrados.forEach(r => pagMap[r.pagamento || 'pix'] += r.valor + (r.gorjeta || 0));
-      const pagCard = div('card'); pagCard.innerHTML = `<div class="card-title">Por Forma de Pagamento</div>`; const pagGrid = div('pag-breakdown');
-      [['pix', 'Pix', 'var(--blue)'], ['dinheiro', 'Dinheiro', 'var(--green)'], ['cartao', 'Cartão', '#c97de8']].forEach(([k, l, c]) => { pagGrid.innerHTML += `<div class="pag-item"><div class="pag-item-val"><span class="pag-dot" style="background:${c}"></span>${brl(pagMap[k])}</div><div class="pag-item-label">${l}</div></div>`; }); pagCard.appendChild(pagGrid); frag.appendChild(pagCard);
-      const metCard = div('card'); metCard.innerHTML = `<div class="card-title">Métricas</div>`; const grid = div('metricas-grid'); const ticketMedio = filtrados.length ? total / filtrados.length : 0;
-      grid.innerHTML = `<div class="metrica-item"><div class="metrica-val">${filtrados.length}</div><div class="metrica-label">Total cortes</div></div><div class="metrica-item"><div class="metrica-val">${brl(ticketMedio)}</div><div class="metrica-label">Ticket médio</div></div><div class="metrica-item"><div class="metrica-val">${brl(gorjTotal)}</div><div class="metrica-label">Em gorjetas</div></div><div class="metrica-item"><div class="metrica-val">${porCorte.length}</div><div class="metrica-label">Tipos serviço</div></div>`; metCard.appendChild(grid); frag.appendChild(metCard);
+
+      if (!filtrados.length) {
+        const v = div('vazio'); v.innerHTML = `<div class="vazio-icon">📋</div>Nenhum dado neste período`;
+        frag.appendChild(v); return frag;
+      }
+
+      // Por serviço — ranking completo
+      const map = {};
+      filtrados.forEach(r => { if (!map[r.corte]) map[r.corte] = { qtd: 0, total: 0 }; map[r.corte].qtd++; map[r.corte].total += r.valor; });
+      const porCorte = Object.entries(map).sort((a, b) => b[1].total - a[1].total);
+      const maxT = porCorte[0] ? porCorte[0][1].total || 1 : 1;
+      const barCard = div('card');
+      barCard.innerHTML = `<div class="card-title">🏆 Ranking de Serviços</div>`;
+      porCorte.forEach(([nome, info], idx) => {
+        const pct = Math.round((info.total / maxT) * 100);
+        const row = div('barra-row');
+        row.innerHTML = `
+          <div class="barra-info">
+            <span class="barra-nome"><span style="color:var(--gold-dim);font-size:11px;margin-right:4px">${idx+1}.</span>${nome}</span>
+            <span class="barra-qtd">${info.qtd}×</span>
+          </div>
+          <div class="barra-track"><div class="barra-fill" style="width:${pct}%"></div></div>
+          <div class="barra-val">${brl(info.total)}</div>`;
+        barCard.appendChild(row);
+      });
+      frag.appendChild(barCard);
+
+      // Por forma de pagamento — barras
+      const pagMap = { pix: 0, dinheiro: 0, cartao: 0 };
+      filtrados.forEach(r => pagMap[r.pagamento || 'pix'] += r.valor + (r.gorjeta || 0));
+      const pagCard = div('card');
+      pagCard.innerHTML = `<div class="card-title">💳 Por Forma de Pagamento</div>`;
+      [['pix','◈ PIX','var(--blue)'],['dinheiro','$ Dinheiro','var(--green)'],['cartao','💳 Cartão','#c97de8']].forEach(([k,l,c]) => {
+        if (!pagMap[k]) return;
+        const pct = Math.round((pagMap[k]/totalGeral)*100);
+        const row = div('barra-row');
+        row.innerHTML = `
+          <div class="barra-info"><span class="barra-nome">${l}</span><span class="barra-qtd">${pct}%</span></div>
+          <div class="barra-track"><div class="barra-fill" style="width:${pct}%;background:linear-gradient(90deg,${c}88,${c})"></div></div>
+          <div class="barra-val">${brl(pagMap[k])}</div>`;
+        pagCard.appendChild(row);
+      });
+      frag.appendChild(pagCard);
+
+      // Métricas
+      const metCard = div('card');
+      metCard.innerHTML = `<div class="card-title">📊 Métricas</div>`;
+      const grid = div('metricas-grid');
+      grid.innerHTML = `
+        <div class="metrica-item"><div class="metrica-val">${filtrados.length}</div><div class="metrica-label">Total cortes</div></div>
+        <div class="metrica-item"><div class="metrica-val">${brl(ticketMedio)}</div><div class="metrica-label">Ticket médio</div></div>
+        <div class="metrica-item"><div class="metrica-val" style="color:var(--green)">${brl(gorjTotal)}</div><div class="metrica-label">Gorjetas</div></div>
+        <div class="metrica-item"><div class="metrica-val">${porCorte.length}</div><div class="metrica-label">Tipos serviço</div></div>`;
+      metCard.appendChild(grid);
+      frag.appendChild(metCard);
       return frag;
     }
-
     // ── EXPORTAR PDF ──────────────────────────────────────────────────────────────
     function exportarPDF(filtrados, total, gorjTotal) {
       const periodo = periodoLabel[state.periodo] || state.periodo;
       const dataHoje = new Date().toLocaleDateString('pt-BR');
-      const pagMap = { pix: 0, dinheiro: 0, cartao: 0 }; filtrados.forEach(r => pagMap[r.pagamento || 'pix'] += r.valor + (r.gorjeta || 0));
-      const map = {}; filtrados.forEach(r => { if (!map[r.corte]) map[r.corte] = { qtd: 0, total: 0 }; map[r.corte].qtd++; map[r.corte].total += r.valor; });
+      const nome = state.nomeUsuario || 'Barbeiro';
+      const totalGeral = total + gorjTotal;
+      const ticketMedio = filtrados.length ? total / filtrados.length : 0;
+
+      const pagMap = { pix: 0, dinheiro: 0, cartao: 0 };
+      filtrados.forEach(r => pagMap[r.pagamento || 'pix'] += r.valor + (r.gorjeta || 0));
+
+      const map = {};
+      filtrados.forEach(r => { if (!map[r.corte]) map[r.corte] = { qtd: 0, total: 0 }; map[r.corte].qtd++; map[r.corte].total += r.valor; });
       const porCorte = Object.entries(map).sort((a, b) => b[1].total - a[1].total);
       const maxT = porCorte[0] ? porCorte[0][1].total || 1 : 1;
 
-      // Gera barras de gráfico em HTML para o PDF
-      const barrasHTML = porCorte.map(([nome, info]) => {
+      // Comparativo período anterior
+      const anterior = calcularPeriodoAnterior(state.periodo);
+      const totalAnt = anterior.reduce((s,r) => s+r.valor+(r.gorjeta||0), 0);
+      let compHtml = '';
+      if (totalAnt > 0 && state.periodo !== 'tudo') {
+        const diff = Math.round(((totalGeral-totalAnt)/totalAnt)*100);
+        const cor = diff >= 0 ? '#4caf78' : '#e05555';
+        const seta = diff >= 0 ? '▲' : '▼';
+        const labelAnt = {hoje:'ontem',semana:'semana passada',mes:'mês passado'}[state.periodo] || '';
+        compHtml = `<div style="margin-top:10px;background:#f0f9f4;border:1px solid #c3e6cb;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;font-size:12px"><span style="color:#555">vs. ${labelAnt} (${brl(totalAnt)})</span><span style="color:${cor};font-weight:700">${seta} ${diff >= 0 ? '+' : ''}${diff}%</span></div>`;
+      }
+
+      // Barras por serviço para o PDF
+      const barrasHTML = porCorte.map(([n, info], idx) => {
         const pct = Math.round((info.total / maxT) * 100);
         return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${nome}</span><span style="color:#888">${info.qtd}x</span></div>
-      <div style="background:#eee;border-radius:4px;height:10px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#9a7a30,#c9a84c);border-radius:4px"></div></div>
-      <div style="font-size:11px;color:#c9a84c;text-align:right;margin-top:2px">${brl(info.total)}</div>
-    </div>`;
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:500">${idx+1}. ${n}</span>
+            <div style="display:flex;gap:12px;align-items:baseline">
+              <span style="font-size:11px;color:#888">${info.qtd}×</span>
+              <span style="font-size:13px;color:#c9a84c;font-weight:700">${brl(info.total)}</span>
+            </div>
+          </div>
+          <div style="background:#eee;border-radius:4px;height:8px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#9a7a30,#c9a84c);border-radius:4px"></div></div>
+        </div>`;
       }).join('');
 
-      const linhasAtend = filtrados.map(r => `
-    <tr style="border-bottom:1px solid #f0f0f0">
-      <td style="padding:7px 8px;font-size:12px">${fmtDate(r.data)}</td>
-      <td style="padding:7px 8px;font-size:12px">${r.hora}</td>
-      <td style="padding:7px 8px;font-size:12px">${r.corte}</td>
-      <td style="padding:7px 8px;font-size:12px;text-align:center">${r.pagamento || 'pix'}</td>
-      <td style="padding:7px 8px;font-size:12px;text-align:right;color:#c9a84c;font-weight:600">${brl(r.valor)}</td>
-      <td style="padding:7px 8px;font-size:12px;text-align:right;color:#4caf78">${r.gorjeta ? brl(r.gorjeta) : '-'}</td>
-    </tr>`).join('');
+      // Barras de pagamento para o PDF
+      const barrasPagHTML = [
+        {nome:'◈ PIX',val:pagMap.pix,cor:'#5b9cf6'},
+        {nome:'$ Dinheiro',val:pagMap.dinheiro,cor:'#4caf78'},
+        {nome:'💳 Cartão',val:pagMap.cartao,cor:'#c97de8'},
+      ].filter(p=>p.val>0).map(p => {
+        const pct = Math.round((p.val/totalGeral)*100);
+        return `<div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+            <span>${p.nome}</span>
+            <span style="color:#555">${brl(p.val)} · ${pct}%</span>
+          </div>
+          <div style="background:#eee;border-radius:3px;height:7px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${p.cor};border-radius:3px"></div></div>
+        </div>`;
+      }).join('');
+
+      const linhasAtend = filtrados.slice(0, 100).map(r => `
+        <tr>
+          <td>${fmtDate(r.data)}</td>
+          <td>${r.hora || ''}</td>
+          <td>${r.corte}</td>
+          <td style="text-align:center">${r.pagamento || 'pix'}</td>
+          <td style="text-align:right;color:#c9a84c;font-weight:600">${brl(r.valor)}</td>
+          <td style="text-align:right;color:#4caf78">${r.gorjeta ? brl(r.gorjeta) : '-'}</td>
+        </tr>`).join('');
 
       const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;background:#fff;color:#1a1a1a;padding:32px;max-width:700px;margin:0 auto}
-    .header{background:linear-gradient(135deg,#0a0a0a,#1e1a00);padding:24px 28px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:16px}
-    .header-icon{width:52px;height:52px;background:#c9a84c;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
-    .header-title{color:#c9a84c;font-size:24px;font-weight:700;letter-spacing:1px}
-    .header-sub{color:#777;font-size:12px;margin-top:4px}
-    .section{background:#fafafa;border:1px solid #eee;border-radius:10px;padding:20px;margin-bottom:16px}
-    .section-title{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;font-weight:700}
-    .resumo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-    .resumo-box{background:#fff;border:1px solid #eee;border-radius:8px;padding:14px;text-align:center}
-    .resumo-val{font-size:20px;font-weight:700;color:#c9a84c;margin-bottom:4px}
-    .resumo-label{font-size:10px;color:#aaa;text-transform:uppercase}
-    .pag-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-    .pag-box{background:#fff;border:1px solid #eee;border-radius:8px;padding:12px;text-align:center}
-    .pag-val{font-size:14px;font-weight:600;color:#333;margin-bottom:3px}
-    .pag-label{font-size:10px;color:#aaa}
-    table{width:100%;border-collapse:collapse}
-    th{background:#f5f5f5;padding:8px;font-size:11px;text-align:left;color:#666;text-transform:uppercase;letter-spacing:.5px}
-    th:last-child,th:nth-child(5){text-align:right}th:nth-child(4){text-align:center}
-    .footer{text-align:center;font-size:11px;color:#aaa;margin-top:24px;padding-top:16px;border-top:1px solid #eee}
-  </style></head><body>
-  <div class="header">
-    <div class="header-icon">✂</div>
-    <div><div class="header-title">BarberCash</div><div class="header-sub">Relatório · ${periodo} · Gerado em ${dataHoje} · ${state.nomeUsuario}</div></div>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;background:#fff;color:#1a1a1a;padding:28px;max-width:720px;margin:0 auto}
+  .header{background:linear-gradient(135deg,#0a0a0a,#1e1a00);padding:22px 24px;border-radius:14px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+  .header-icon{width:50px;height:50px;background:#c9a84c;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+  .header-title{color:#c9a84c;font-size:22px;font-weight:700;letter-spacing:1px}
+  .header-sub{color:#777;font-size:12px;margin-top:3px}
+  .section{background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px;margin-bottom:14px}
+  .section-title{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;font-weight:700}
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+  .kpi{background:#fff;border:1px solid #eee;border-radius:8px;padding:12px;text-align:center}
+  .kpi-val{font-size:18px;font-weight:700;color:#c9a84c;margin-bottom:3px}
+  .kpi-label{font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
+  th{background:#f5f5f5;padding:7px 8px;font-size:10px;text-align:left;color:#666;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #eee}
+  td{padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0}
+  .footer{text-align:center;font-size:10px;color:#aaa;margin-top:20px;padding-top:14px;border-top:1px solid #eee}
+</style></head><body>
+<div class="header">
+  <div class="header-icon">✂</div>
+  <div><div class="header-title">BarberCash</div><div class="header-sub">Relatório de Rendimento · ${periodo} · ${nome} · ${dataHoje}</div></div>
+</div>
+<div class="section">
+  <div class="section-title">Resumo do Período</div>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-val">${brl(totalGeral)}</div><div class="kpi-label">Total geral</div></div>
+    <div class="kpi"><div class="kpi-val">${filtrados.length}</div><div class="kpi-label">Atendimentos</div></div>
+    <div class="kpi"><div class="kpi-val">${brl(ticketMedio)}</div><div class="kpi-label">Ticket médio</div></div>
+    <div class="kpi" style="border-color:#d4edda"><div class="kpi-val" style="color:#4caf78">${brl(gorjTotal)}</div><div class="kpi-label">Gorjetas</div></div>
   </div>
-  <div class="section">
-    <div class="section-title">Resumo do Período</div>
-    <div class="resumo-grid">
-      <div class="resumo-box"><div class="resumo-val">${brl(total + gorjTotal)}</div><div class="resumo-label">Total Geral</div></div>
-      <div class="resumo-box"><div class="resumo-val">${filtrados.length}</div><div class="resumo-label">Atendimentos</div></div>
-      <div class="resumo-box"><div class="resumo-val">${brl(gorjTotal)}</div><div class="resumo-label">Gorjetas</div></div>
-    </div>
-  </div>
-  <div class="section">
-    <div class="section-title">Por Forma de Pagamento</div>
-    <div class="pag-grid">
-      <div class="pag-box"><div class="pag-val" style="color:#5b9cf6">${brl(pagMap.pix)}</div><div class="pag-label">Pix</div></div>
-      <div class="pag-box"><div class="pag-val" style="color:#4caf78">${brl(pagMap.dinheiro)}</div><div class="pag-label">Dinheiro</div></div>
-      <div class="pag-box"><div class="pag-val" style="color:#c97de8">${brl(pagMap.cartao)}</div><div class="pag-label">Cartão</div></div>
-    </div>
-  </div>
-  <div class="section">
-    <div class="section-title">Por Serviço</div>
-    ${barrasHTML || '<p style="color:#aaa;font-size:13px">Nenhum dado</p>'}
-  </div>
-  <div class="section">
-    <div class="section-title">Lista de Atendimentos</div>
-    <table>
-      <thead><tr><th>Data</th><th>Hora</th><th>Serviço</th><th style="text-align:center">Pagto</th><th style="text-align:right">Valor</th><th style="text-align:right">Gorjeta</th></tr></thead>
-      <tbody>${linhasAtend || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">Nenhum atendimento</td></tr>'}</tbody>
-    </table>
-  </div>
-  <div class="footer">BarberCash · Relatório gerado automaticamente · ${dataHoje}</div>
-  <script>window.onload=()=>{window.print();}<\/script>
-  </body></html>`;
+  ${compHtml}
+</div>
+<div class="section">
+  <div class="section-title">Por Forma de Pagamento</div>
+  ${barrasPagHTML || '<p style="color:#aaa;font-size:12px">Nenhum dado</p>'}
+</div>
+<div class="section">
+  <div class="section-title">Ranking de Serviços</div>
+  ${barrasHTML || '<p style="color:#aaa;font-size:12px">Nenhum dado</p>'}
+</div>
+<div class="section">
+  <div class="section-title">Lista de Atendimentos${filtrados.length > 100 ? ' (primeiros 100)' : ''}</div>
+  <table>
+    <thead><tr><th>Data</th><th>Hora</th><th>Serviço</th><th style="text-align:center">Pagto</th><th style="text-align:right">Valor</th><th style="text-align:right">Gorjeta</th></tr></thead>
+    <tbody>${linhasAtend || '<tr><td colspan="6" style="text-align:center;padding:16px;color:#aaa">Nenhum atendimento</td></tr>'}</tbody>
+  </table>
+</div>
+<div class="footer">BarberCash · Relatório gerado automaticamente · ${dataHoje}</div>
+<script>window.onload=()=>{window.print();}<\/script>
+</body></html>`;
 
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
@@ -5006,6 +5217,81 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       showFeedback('Relatório aberto! 📊', 'ok');
+    }
+
+    // ── EXPORTAR CSV ─────────────────────────────────────────────────────────────
+    function exportarCSV(filtrados) {
+      if (!filtrados.length) { showFeedback('Sem dados no período.', 'erro'); return; }
+      const periodo = periodoLabel[state.periodo] || state.periodo;
+      const linhas = [
+        ['Data','Hora','Serviço','Pagamento','Valor (R$)','Gorjeta (R$)','Total (R$)','Barbeiro','Obs'],
+        ...filtrados.map(r => [
+          r.data,
+          r.hora || '',
+          '"' + (r.corte || '').replace(/"/g,'""') + '"',
+          r.pagamento || 'pix',
+          r.valor.toFixed(2).replace('.',','),
+          (r.gorjeta||0).toFixed(2).replace('.',','),
+          (r.valor+(r.gorjeta||0)).toFixed(2).replace('.',','),
+          '"' + (r.barbeiro || 'eu') + '"',
+          '"' + (r.obs||'').replace(/"/g,'""') + '"',
+        ])
+      ];
+      const csv = '\uFEFF' + linhas.map(l => l.join(';')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `barbercash_${periodo.toLowerCase().replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      showFeedback('CSV baixado! 📊', 'ok');
+    }
+
+    // ── EXPORTAR WHATSAPP ─────────────────────────────────────────────────────────
+    function exportarWhatsApp(filtrados, total, gorjTotal) {
+      if (!filtrados.length) { showFeedback('Sem dados no período.', 'erro'); return; }
+      const periodo = periodoLabel[state.periodo] || state.periodo;
+      const totalGeral = total + gorjTotal;
+      const ticketMedio = filtrados.length ? total / filtrados.length : 0;
+      const nome = state.nomeUsuario || 'Barbeiro';
+      const dataHoje = new Date().toLocaleDateString('pt-BR');
+
+      // Agrupa por forma de pagamento
+      const pagMap = { pix: 0, dinheiro: 0, cartao: 0 };
+      filtrados.forEach(r => pagMap[r.pagamento || 'pix'] += r.valor + (r.gorjeta||0));
+
+      // Top 3 serviços
+      const mapCorte = {};
+      filtrados.forEach(r => { if (!mapCorte[r.corte]) mapCorte[r.corte] = {qtd:0,total:0}; mapCorte[r.corte].qtd++; mapCorte[r.corte].total += r.valor; });
+      const top3 = Object.entries(mapCorte).sort((a,b)=>b[1].total-a[1].total).slice(0,3);
+
+      const comparativo = calcularPeriodoAnterior(state.periodo);
+      const totalAnt = comparativo.reduce((s,r) => s+r.valor+(r.gorjeta||0), 0);
+      let compTexto = '';
+      if (totalAnt > 0 && state.periodo !== 'tudo') {
+        const diff = Math.round(((totalGeral-totalAnt)/totalAnt)*100);
+        const seta = diff >= 0 ? '📈' : '📉';
+        compTexto = `\n${seta} Variação: ${diff >= 0 ? '+' : ''}${diff}% vs período anterior`;
+      }
+
+      const msg = `✂ *BarberCash — Relatório ${periodo}*\n`
+        + `📅 Gerado em ${dataHoje} · ${nome}\n\n`
+        + `💰 *Faturamento: ${brl(totalGeral)}*\n`
+        + `📊 Serviços: ${brl(total)}\n`
+        + `🎉 Gorjetas: ${brl(gorjTotal)}\n`
+        + `✂ Atendimentos: ${filtrados.length}\n`
+        + `📈 Ticket médio: ${brl(ticketMedio)}`
+        + compTexto + `\n\n`
+        + `*💳 Por pagamento:*\n`
+        + (pagMap.pix > 0 ? `◈ PIX: ${brl(pagMap.pix)}\n` : '')
+        + (pagMap.dinheiro > 0 ? `$ Dinheiro: ${brl(pagMap.dinheiro)}\n` : '')
+        + (pagMap.cartao > 0 ? `💳 Cartão: ${brl(pagMap.cartao)}\n` : '')
+        + (top3.length > 0 ? `\n*🏆 Top serviços:*\n` + top3.map((([n,i],idx) => `${idx+1}. ${n} — ${i.qtd}x · ${brl(i.total)}`)).join('\n') : '')
+        + `\n\n_Gerado pelo BarberCash_ 💈`;
+
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      showFeedback('Abrindo WhatsApp... 💬', 'ok');
     }
 
     // ── SINCRONIZAR COM NUVEM ─────────────────────────────────────────────────────
@@ -5626,8 +5912,26 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
     }
 
     // ── RENDER AGENDAMENTOS ───────────────────────────────────────────────────────
-    // Estado de navegação de data na agenda
-    // estado da agenda migrado para state._agendaDataStr / state._agendaTodos / state._agendaSemanaBase
+    // Estado de filtro da agenda: 'hoje' | 'semana' | 'mes:YYYY-MM'
+    if (typeof state._agendaFiltro === 'undefined') state._agendaFiltro = 'hoje';
+
+    function _agFiltrarPorPeriodo(filtro) {
+      const agora = Date.now();
+      const hojeStr = today();
+      if (filtro === 'hoje') {
+        return state.agendamentos.filter(a => new Date(a.dataHora||0).toISOString().slice(0,10) === hojeStr);
+      }
+      if (filtro === 'semana') {
+        const base = new Date(); base.setHours(0,0,0,0); base.setDate(base.getDate() - base.getDay());
+        const fim = new Date(base); fim.setDate(fim.getDate() + 6); fim.setHours(23,59,59,999);
+        return state.agendamentos.filter(a => (a.dataHora||0) >= base.getTime() && (a.dataHora||0) <= fim.getTime());
+      }
+      if (filtro && filtro.startsWith('mes:')) {
+        const [, anoMes] = filtro.split(':');
+        return state.agendamentos.filter(a => new Date(a.dataHora||0).toISOString().slice(0,7) === anoMes);
+      }
+      return state.agendamentos;
+    }
 
     function renderAgendamentos() {
       const frag = document.createDocumentFragment();
@@ -5635,183 +5939,104 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       const hojeDate = new Date(); hojeDate.setHours(0,0,0,0);
       const hojeStr = today();
 
-      // ── Estado da agenda ──
-      if (typeof state._agendaDataStr === 'undefined') state._agendaDataStr = hojeStr;
-      if (typeof state._agendaTodos === 'undefined') state._agendaTodos = false;
-      // Semana exibida no mini-cal (base = domingo da semana selecionada)
-      if (typeof state._agendaSemanaBase === 'undefined') {
-        const d = new Date(hojeDate); d.setDate(d.getDate() - d.getDay());
-        state._agendaSemanaBase = d.getTime();
+      const filtro = state._agendaFiltro || 'hoje';
+
+      // ── Banner de filtros ──
+      const filtroWrap = div('');
+      filtroWrap.style.cssText = 'display:flex;gap:6px;overflow-x:auto;padding:0 0 10px;margin-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none';
+
+      const filtroOpts = [['hoje','Hoje'],['semana','Esta semana']];
+      // Adiciona meses (mês atual + 5 anteriores)
+      const agora2 = new Date();
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(agora2.getFullYear(), agora2.getMonth() - i, 1);
+        const key = 'mes:' + d.toISOString().slice(0,7);
+        const label = d.toLocaleDateString('pt-BR',{month:'short',year:'numeric'}).replace(' de ',' ');
+        filtroOpts.push([key, '📆 ' + label]);
       }
 
-      const semanaBase = new Date(state._agendaSemanaBase);
-
-      // ── Mapa: dataStr → agendamentos ──
-      const porDia = {};
-      state.agendamentos.forEach(a => {
-        const ds = new Date(a.dataHora || 0).toISOString().slice(0,10);
-        if (!porDia[ds]) porDia[ds] = [];
-        porDia[ds].push(a);
-      });
-
-      // ── CARD PRINCIPAL ──
-      const mainCard = div('card');
-      mainCard.style.marginBottom = '10px';
-
-      // Título + botão Todos
-      const headerRow = div('');
-      headerRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px';
-      const titleEl = div('card-title'); titleEl.style.marginBottom = '0'; titleEl.textContent = '📅 Agenda';
-
-      const rightRow = div(''); rightRow.style.cssText = 'display:flex;align-items:center;gap:8px';
-
-      const btnTodos = document.createElement('button');
-      btnTodos.className = 'agcal-btn-todos' + (state._agendaTodos ? ' active' : '');
-      btnTodos.textContent = state._agendaTodos ? '✕ Todos' : '☰ Todos';
-      btnTodos.onclick = () => { state._agendaTodos = !state._agendaTodos; render(); };
-      rightRow.appendChild(btnTodos);
-
-      headerRow.appendChild(titleEl); headerRow.appendChild(rightRow);
-      mainCard.appendChild(headerRow);
-
-      // ── MINI CALENDÁRIO SEMANAL ──
-      const calWrap = div('agcal-wrap');
-
-      // Header do calendário: mês + setas de semana
-      const calHeader = div('agcal-header');
-      const mesLabel = div('agcal-mes-label');
-      // Determina mês do meio da semana
-      const meioSemana = new Date(semanaBase); meioSemana.setDate(meioSemana.getDate() + 3);
-      const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-      mesLabel.textContent = `${meses[meioSemana.getMonth()]} ${meioSemana.getFullYear()}`;
-
-      const navRow = div('agcal-nav-row');
-      const btnPrevSem = document.createElement('button');
-      btnPrevSem.className = 'agcal-nav-btn'; btnPrevSem.textContent = '‹';
-      btnPrevSem.onclick = () => {
-        const nb = new Date(state._agendaSemanaBase); nb.setDate(nb.getDate() - 7);
-        state._agendaSemanaBase = nb.getTime(); render();
-      };
-      const btnNextSem = document.createElement('button');
-      btnNextSem.className = 'agcal-nav-btn'; btnNextSem.textContent = '›';
-      btnNextSem.onclick = () => {
-        const nb = new Date(state._agendaSemanaBase); nb.setDate(nb.getDate() + 7);
-        state._agendaSemanaBase = nb.getTime(); render();
-      };
-      // Botão Hoje (volta para semana atual)
-      const btnHojeCal = document.createElement('button');
-      btnHojeCal.className = 'agcal-nav-btn';
-      btnHojeCal.style.cssText = 'font-size:10px;padding:3px 8px;letter-spacing:.3px';
-      btnHojeCal.textContent = 'Hoje';
-      btnHojeCal.onclick = () => {
-        const d = new Date(hojeDate); d.setDate(d.getDate() - d.getDay());
-        state._agendaSemanaBase = d.getTime();
-        state._agendaDataStr = hojeStr;
-        state._agendaTodos = false;
-        render();
-      };
-
-      navRow.appendChild(btnPrevSem); navRow.appendChild(btnNextSem); navRow.appendChild(btnHojeCal);
-      calHeader.appendChild(mesLabel); calHeader.appendChild(navRow);
-      calWrap.appendChild(calHeader);
-
-      // Dias da semana
-      const daysGrid = div('agcal-days');
-      const dows = ['D','S','T','Q','Q','S','S'];
-      for (let i = 0; i < 7; i++) {
-        const diaDate = new Date(semanaBase); diaDate.setDate(semanaBase.getDate() + i);
-        const diaStr = diaDate.toISOString().slice(0,10);
-        const ehHoje = diaStr === hojeStr;
-        const ehSel = !state._agendaTodos && diaStr === state._agendaDataStr;
-        const passado = diaDate < hojeDate;
-        const temAg = !!(porDia[diaStr] && porDia[diaStr].length > 0);
-        const pendDia = temAg ? porDia[diaStr].filter(a => !a.atendido).length : 0;
-
-        let cls = 'agcal-day';
-        if (ehSel) cls += ' selected';
-        else if (ehHoje) cls += ' hoje';
-        else if (passado) cls += ' passado';
-        if (temAg && !ehSel) cls += ' tem-ag';
-
-        const dayEl = div(cls);
-        dayEl.innerHTML = `
-          <span class="agcal-day-dow">${dows[i]}</span>
-          <span class="agcal-day-num">${diaDate.getDate()}</span>
-          <span class="agcal-day-dot${temAg ? (pendDia > 0 ? '' : ' atendido') : ' vazio'}"></span>`;
-        dayEl.onclick = () => {
-          state._agendaDataStr = diaStr;
-          state._agendaTodos = false;
-          render();
-        };
-        daysGrid.appendChild(dayEl);
-      }
-      calWrap.appendChild(daysGrid);
-      mainCard.appendChild(calWrap);
-
-      // ── STATS ── (dia selecionado ou todos)
-      let agFiltro, labelFiltro;
-      if (state._agendaTodos) {
-        agFiltro = [...state.agendamentos].sort((a,b) => (a.dataHora||0) - (b.dataHora||0));
-        labelFiltro = 'Todos os agendamentos';
-      } else {
-        const selDate = new Date(state._agendaDataStr + 'T00:00:00');
-        const selFim  = new Date(state._agendaDataStr + 'T23:59:59');
-        agFiltro = state.agendamentos
-          .filter(a => (a.dataHora||0) >= selDate.getTime() && (a.dataHora||0) <= selFim.getTime())
-          .sort((a,b) => (a.dataHora||0) - (b.dataHora||0));
-        const isH = state._agendaDataStr === hojeStr;
-        const isA = state._agendaDataStr === new Date(agora + 86400000).toISOString().slice(0,10);
-        labelFiltro = isH ? 'Hoje' : isA ? 'Amanhã'
-          : selDate.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit'});
-      }
-
-      const pendentes = agFiltro.filter(a => !a.atendido);
-      const atendidos = agFiltro.filter(a => a.atendido);
-
-      // Stats bar
-      const statsGrid = div('');
-      statsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:0';
-      statsGrid.innerHTML = `
-        <div class="resumo-item"><div class="resumo-val">${agFiltro.length}</div><div class="resumo-label">Total</div></div>
-        <div class="resumo-item"><div class="resumo-val" style="color:var(--green)">${atendidos.length}</div><div class="resumo-label">Atendidos</div></div>
-        <div class="resumo-item"><div class="resumo-val" style="color:var(--gold)">${pendentes.length}</div><div class="resumo-label">Pendentes</div></div>`;
-      mainCard.appendChild(statsGrid);
-
-      // Próximo (só modo dia, se for hoje)
-      if (!state._agendaTodos && state._agendaDataStr === hojeStr) {
-        const proximoAg = pendentes.filter(a => (a.dataHora||0) >= agora - 5*60000)[0];
-        if (proximoAg) {
-          const diffMin = Math.round(((proximoAg.dataHora||0) - agora) / 60000);
-          const horaProx = new Date(proximoAg.dataHora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-          const badgeLabel = diffMin <= 0 ? 'agora' : diffMin < 60 ? `em ${diffMin}min` : `em ${Math.round(diffMin/60)}h`;
-          const iminente = diffMin >= -5 && diffMin <= 30;
-          const banner = div('agenda-prox-banner');
-          banner.style.marginTop = '12px';
-          banner.innerHTML = `
-            <div><div class="agenda-prox-hora">${horaProx}</div><div class="agenda-prox-label">próximo</div></div>
-            <div class="agenda-prox-info"><div class="agenda-prox-nome">${proximoAg.nome||'—'}</div><div class="agenda-prox-serv">✂ ${proximoAg.servico||'—'}</div></div>
-            <div class="agenda-prox-badge${iminente ? '' : ' ok'}">${badgeLabel}</div>`;
-          mainCard.appendChild(banner);
-        }
-      }
-
-      frag.appendChild(mainCard);
-
-      // ── LISTA ──
-      const listCard = div('card');
-
-      // Abas Pendentes / Atendidos
-      const tabRow = div('agenda-tab-row');
-      [['pendentes', `Pendentes (${pendentes.length})`], ['atendidos', `Atendidos (${atendidos.length})`]].forEach(([k, label]) => {
+      filtroOpts.forEach(([k, l]) => {
         const btn = document.createElement('button');
-        btn.className = 'agenda-tab' + (_agendaSubFiltro === k ? ' active' : '');
-        btn.textContent = label;
-        btn.onclick = () => { _agendaSubFiltro = k; render(); };
-        tabRow.appendChild(btn);
+        const ativo = filtro === k;
+        btn.style.cssText = `padding:7px 14px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid ${ativo ? 'var(--gold)' : 'var(--border)'};background:${ativo ? 'var(--gold)' : 'var(--surface2)'};color:${ativo ? '#000' : 'var(--muted)'};font-family:'DM Sans',sans-serif;white-space:nowrap;font-weight:${ativo ? '600' : '400'};flex-shrink:0;transition:all .15s`;
+        btn.textContent = l;
+        btn.onclick = () => { state._agendaFiltro = k; render(); };
+        filtroWrap.appendChild(btn);
       });
-      listCard.appendChild(tabRow);
+      frag.appendChild(filtroWrap);
 
-      const lista = _agendaSubFiltro === 'pendentes' ? pendentes : atendidos;
+      // ── Calcular agendamentos do filtro ──
+      const agFiltro = _agFiltrarPorPeriodo(filtro).sort((a,b)=>(a.dataHora||0)-(b.dataHora||0));
+      const total = agFiltro.length;
+      const confirmados = agFiltro.filter(a => a.atendido).length;
+      const pendentes = agFiltro.filter(a => !a.atendido && (a.dataHora||0) >= agora - 5*60000).length;
+      const passou = agFiltro.filter(a => !a.atendido && (a.dataHora||0) < agora - 5*60000).length;
+
+      // Label do período selecionado
+      let labelPeriodo = 'Hoje';
+      if (filtro === 'semana') {
+        const base = new Date(); base.setHours(0,0,0,0); base.setDate(base.getDate()-base.getDay());
+        const fim = new Date(base); fim.setDate(fim.getDate()+6);
+        labelPeriodo = base.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' – ' + fim.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+      } else if (filtro && filtro.startsWith('mes:')) {
+        const [,anoMes] = filtro.split(':');
+        const d = new Date(anoMes+'-02');
+        labelPeriodo = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+      } else {
+        const now = new Date();
+        labelPeriodo = now.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+      }
+
+      // ── Banner de totais ──
+      const banner = div('');
+      banner.style.cssText = 'background:linear-gradient(135deg,#1a1500,#221b00);border:1px solid #3a2e00;border-radius:14px;padding:16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px';
+      banner.innerHTML = `
+        <div>
+          <div style="font-size:10px;color:var(--gold-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">Total agendado</div>
+          <div style="font-family:'Playfair Display',serif;font-size:26px;color:var(--gold);line-height:1">${total} cliente${total !== 1 ? 's' : ''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">${labelPeriodo}</div>
+        </div>
+        <div style="display:flex;gap:14px;flex-shrink:0">
+          <div style="text-align:center">
+            <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--green)">${confirmados}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">atend.</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--gold)">${pendentes}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">pend.</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--muted)">${passou}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">passou</div>
+          </div>
+        </div>`;
+      frag.appendChild(banner);
+
+      // ── Botões de ação (adicionar vagas) ──
+      const acaoRow = div('');
+      acaoRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
+      const btnVagas = document.createElement('button');
+      btnVagas.style.cssText = 'flex:1;padding:11px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+      btnVagas.innerHTML = '⚙ Gerenciar Vagas';
+      btnVagas.onclick = () => abrirModalVagas();
+      acaoRow.appendChild(btnVagas);
+      frag.appendChild(acaoRow);
+
+      // ── Lista de agendamentos agrupada por data ──
+      if (!agFiltro.length) {
+        const vz = div('vazio'); vz.innerHTML = `<div class="vazio-icon">📭</div>Nenhum agendamento neste período`;
+        frag.appendChild(vz); return frag;
+      }
+
+      // Agrupa por data
+      const grupos = {};
+      agFiltro.forEach(a => {
+        const ds = new Date(a.dataHora||0).toISOString().slice(0,10);
+        if (!grupos[ds]) grupos[ds] = [];
+        grupos[ds].push(a);
+      });
+
+      const listCard = div('');
 
       const renderCard = (ag) => {
         const c = div('agenda-card' + (ag.atendido ? ' atendido' : ''));
@@ -5820,19 +6045,20 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
         const diaStr  = dtHora.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
         const diffMs  = (ag.dataHora||0) - agora;
         const isIminente = !ag.atendido && diffMs > 0 && diffMs < 3600000;
+        const passou2 = !ag.atendido && diffMs < -5*60000;
         c.innerHTML = `
           <div class="agenda-card-hora">
             <div class="agenda-card-hora-val">${horaStr}</div>
-            <div class="agenda-card-hora-dot"></div>
+            <div class="agenda-card-hora-dot" style="${passou2 ? 'background:var(--muted2)' : ag.atendido ? 'background:var(--green)' : ''}"></div>
           </div>
           <div class="agenda-card-divider"></div>
           <div class="agenda-card-body">
             <div class="agenda-nome">${ag.nome||'—'}</div>
             <div class="agenda-servico">✂ ${ag.servico||'—'}</div>
             <div class="agenda-meta">
-              <span>${diaStr}</span>
               ${ag.whatsapp ? `<span>📱 ${formatarWppDisplay(ag.whatsapp)}</span>` : ''}
               ${isIminente ? `<span style="color:var(--red);font-weight:600">em ${Math.round(diffMs/60000)}min</span>` : ''}
+              ${passou2 ? `<span style="color:var(--muted)">passou</span>` : ''}
             </div>
             ${ag.obs ? `<div class="agenda-obs">"${ag.obs}"</div>` : ''}
             <div class="agenda-actions">
@@ -5844,46 +6070,39 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
         return c;
       };
 
-      if (!lista.length) {
-        const vazio = div('vazio'); vazio.style.padding = '32px 0';
-        vazio.innerHTML = `<div class="vazio-icon">${_agendaSubFiltro === 'pendentes' ? '📭' : '✅'}</div>${_agendaSubFiltro === 'pendentes' ? 'Nenhum agendamento pendente' : 'Nenhum atendimento registrado'}`;
-        listCard.appendChild(vazio);
-      } else if (state._agendaTodos) {
-        // Modo todos: agrupa por dia
-        const grupos = {};
-        lista.forEach(a => {
-          const ds = new Date(a.dataHora||0).toISOString().slice(0,10);
-          if (!grupos[ds]) grupos[ds] = [];
-          grupos[ds].push(a);
-        });
-        Object.keys(grupos).sort().forEach(ds => {
-          const grpDate = new Date(ds + 'T12:00:00');
-          const ehH = ds === hojeStr;
-          const label = div('agenda-section-label');
-          label.style.cssText = 'font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 8px 2px;display:flex;align-items:center;gap:8px';
-          const diasNome = grpDate.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
-          label.innerHTML = `<span>${diasNome}</span>${ehH ? '<span style="font-size:10px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:4px;padding:1px 6px">hoje</span>' : ''}`;
-          listCard.appendChild(label);
-          grupos[ds].forEach(ag => listCard.appendChild(renderCard(ag)));
-        });
-      } else {
-        // Modo dia: separa passados/próximos se for hoje
-        const isHojeSel = state._agendaDataStr === hojeStr;
-        const passados = isHojeSel ? lista.filter(a => (a.dataHora||0) < agora - 5*60000) : [];
-        const futuros  = isHojeSel ? lista.filter(a => (a.dataHora||0) >= agora - 5*60000) : lista;
-        if (futuros.length > 0) {
-          if (passados.length > 0) { const l = div('agenda-section-label'); l.textContent = 'Próximos'; listCard.appendChild(l); }
-          futuros.forEach(ag => listCard.appendChild(renderCard(ag)));
-        }
-        if (passados.length > 0) {
-          const l = div('agenda-section-label'); l.textContent = 'Mais cedo'; listCard.appendChild(l);
-          passados.forEach(ag => listCard.appendChild(renderCard(ag)));
-        }
-      }
+      Object.keys(grupos).sort().forEach(ds => {
+        const grpDate = new Date(ds + 'T12:00:00');
+        const ehH = ds === hojeStr;
+        const grpAgs = grupos[ds];
+        const grpPend = grpAgs.filter(a => !a.atendido && (a.dataHora||0) >= agora - 5*60000).length;
+        const grpAtend = grpAgs.filter(a => a.atendido).length;
+
+        const label = div('');
+        label.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px 2px';
+        const diasNome = grpDate.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
+        const badgesHtml = [
+          ehH ? `<span style="font-size:10px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:4px;padding:1px 6px">hoje</span>` : '',
+          grpPend > 0 ? `<span style="font-size:10px;background:rgba(201,168,76,.1);color:var(--gold);border-radius:4px;padding:1px 6px">${grpPend} pend.</span>` : '',
+          grpAtend > 0 ? `<span style="font-size:10px;background:rgba(76,175,120,.1);color:var(--green);border-radius:4px;padding:1px 6px">${grpAtend} atend.</span>` : '',
+        ].filter(Boolean).join('');
+        label.innerHTML = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">${diasNome}</span>${badgesHtml}</div><span style="font-size:12px;color:var(--muted)">${grpAgs.length}</span>`;
+        listCard.appendChild(label);
+        grpAgs.forEach(ag => listCard.appendChild(renderCard(ag)));
+      });
 
       frag.appendChild(listCard);
       return frag;
     }
+
+    // compat: estado da agenda migrado
+    if (typeof state._agendaDataStr === 'undefined') state._agendaDataStr = today();
+    if (typeof state._agendaTodos === 'undefined') state._agendaTodos = false;
+    if (typeof state._agendaSemanaBase === 'undefined') {
+      const hd = new Date(); hd.setHours(0,0,0,0); hd.setDate(hd.getDate()-hd.getDay());
+      state._agendaSemanaBase = hd.getTime();
+    }
+    const semanaBase = new Date(state._agendaSemanaBase);
+    // bloco legado removido — renderAgendamentos reescrito acima
 
     function formatarWppDisplay(num) {
       const n = (num || '').replace(/\D/g, '');
