@@ -3819,6 +3819,8 @@
     setPersistence(auth, browserLocalPersistence).catch(() => { });
     onAuthStateChanged(auth, async user => {
       if (user) {
+        // Ignora usuários anônimos (criados pelo booking.html para leitura do Firestore)
+        if (user.isAnonymous) return;
         // Se trocou de usuário, reseta state antes de carregar os novos dados
         if (_uidAtual && _uidAtual !== user.uid) { resetState(); }
         // Força refresh do token
@@ -4076,24 +4078,21 @@
       const agHojePend = agHojeTodos.filter(a => !a.atendido).length;
       const taxaHoje = agHojeTodos.length > 0 ? Math.round((agHojeAtend / agHojeTodos.length) * 100) : 0;
 
-      // Próximo após agora (para o banner de destaque)
-      const proximoReal = agProximos[0] || null;
-
       const painelCard = div('');
       painelCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px';
 
-      // Grid de estatísticas
+      // Grid de estatísticas — só números
       painelCard.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
             <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);margin-bottom:2px">${agHojePend}</div>
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes hoje</div>
-            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">${agHojeAtend} atendido${agHojeAtend !== 1 ? 's' : ''}</div>` : ''}
+            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">${agHojeAtend} atendido${agHojeAtend !== 1 ? 's' : ''}</div>` : '<div style="font-size:11px;color:var(--muted);margin-top:4px">—</div>'}
           </div>
           <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
             <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--blue);margin-bottom:2px">${agSemPend}</div>
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes semana</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">${diaSem === 0 ? 'dom' : diaSem === 1 ? 'seg' : diaSem === 2 ? 'ter' : diaSem === 3 ? 'qua' : diaSem === 4 ? 'qui' : diaSem === 5 ? 'sex' : 'sáb'} → sáb</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">seg → dom</div>
           </div>
           <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
             <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--orange);margin-bottom:2px">${agMesPend}</div>
@@ -4103,19 +4102,10 @@
           <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
             <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--green);margin-bottom:2px">${agMesTotalAtend}</div>
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Atendidos no mês</div>
-            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">hoje: ${taxaHoje}% taxa</div>` : ''}
+            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">hoje: ${taxaHoje}% taxa</div>` : '<div style="font-size:11px;color:var(--muted);margin-top:4px">—</div>'}
           </div>
         </div>
-        ${proximoReal ? `
-        <div style="background:linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.03));border:1px solid var(--gold-dim);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="irTela('agendamentos',document.getElementById('nav-agendamentos'))">
-          <div style="flex-shrink:0;width:44px;height:44px;border-radius:10px;background:rgba(201,168,76,.15);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;color:var(--gold)">${new Date(proximoReal._ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:600">${proximoReal.nome || '—'}</div>
-            <div style="font-size:11px;color:var(--muted)">✂ ${proximoReal.servico || '—'} · próximo na fila</div>
-          </div>
-          <div style="font-size:11px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:6px;padding:3px 8px">próximo ›</div>
-        </div>` : `
-        <div style="text-align:center;padding:12px 0;color:var(--muted);font-size:13px">✅ Nenhum agendamento pendente próximo</div>`}`;
+        <button onclick="irTela('agendamentos',document.getElementById('nav-agendamentos'))" style="width:100%;margin-top:12px;padding:10px;background:rgba(201,168,76,.08);border:1px solid var(--gold-dim);border-radius:10px;color:var(--gold);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.5px">📅 Abrir agenda completa →</button>`;
 
       wrap.appendChild(painelCard);
 
@@ -4506,13 +4496,24 @@
       banner.innerHTML = `<div class="total-banner"><div class="total-banner-label">Faturamento do período</div><div class="total-banner-val">${brl(total)}</div><div class="total-banner-sub"><span>✂ ${filtrados.length} corte(s)</span><span style="color:var(--green)">+ ${brl(gorjTotal)} gorjeta</span></div></div><div class="pag-breakdown"><div class="pag-item"><div class="pag-item-val"><span class="pag-dot" style="background:var(--blue)"></span>${brl(pagGroup.pix)}</div><div class="pag-item-label">Pix</div></div><div class="pag-item"><div class="pag-item-val"><span class="pag-dot" style="background:var(--green)"></span>${brl(pagGroup.dinheiro)}</div><div class="pag-item-label">Dinheiro</div></div><div class="pag-item"><div class="pag-item-val"><span class="pag-dot" style="background:#c97de8"></span>${brl(pagGroup.cartao)}</div><div class="pag-item-label">💳 Cartão</div></div></div>`;
       periodoCard.appendChild(banner);
 
-      // Botão Relatório de Rendimento
+      // Botão Relatório — exporta direto sem tela intermediária
       if (filtrados.length > 0) {
+        const botoesRel = div('');
+        botoesRel.style.cssText = 'display:flex;gap:8px;margin-top:12px';
+
         const btnRend = document.createElement('button');
-        btnRend.style.cssText = 'width:100%;margin-top:12px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:8px';
+        btnRend.style.cssText = 'flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
         btnRend.innerHTML = '📊 Relatório de Rendimento';
         btnRend.onclick = () => exportarRendimento(filtrados, total, gorjTotal);
-        periodoCard.appendChild(btnRend);
+
+        const btnPdf = document.createElement('button');
+        btnPdf.style.cssText = 'flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
+        btnPdf.innerHTML = '📄 Exportar PDF';
+        btnPdf.onclick = () => exportarPDF(filtrados, total, gorjTotal);
+
+        botoesRel.appendChild(btnRend);
+        botoesRel.appendChild(btnPdf);
+        periodoCard.appendChild(botoesRel);
       }
 
       frag.appendChild(periodoCard);

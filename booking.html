@@ -272,11 +272,15 @@ async function init() {
   }, 3000);
 
   // ── 3. Listener de VAGAS em tempo real ──────────────────────────────────────
+  // Normaliza dataHora: aceita Timestamp Firestore ou número
+  function normTs(v){ if(!v) return 0; if(typeof v==='number') return v; if(v&&typeof v==='object'&&typeof v.seconds==='number') return v.seconds*1000+Math.floor((v.nanoseconds||0)/1e6); if(v&&typeof v.toMillis==='function') return v.toMillis(); return Number(v)||0; }
+
   onSnapshot(
     query(collection(db,'vagas'), orderBy('dataHora','asc')),
     snap => {
-      S.vagas = snap.docs.map(d => ({id:d.id,...d.data()}))
-        .filter(v => v.dataHora > Date.now() && v.disponivel !== false)
+      const now = Date.now();
+      S.vagas = snap.docs.map(d => ({id:d.id,...d.data(),dataHora:normTs(d.data().dataHora)}))
+        .filter(v => v.dataHora > now && v.disponivel !== false)
         .filter(v => !S.uidBarbeiro || !v.uid || v.uid === S.uidBarbeiro);
       if(S.step === 2) renderCalBook();
     },
@@ -613,14 +617,14 @@ async function confirmar(){
   const {servico,vaga,nome,wpp,obs}=S.sel;
 
   try {
-    // 1. Salva agendamento
+    // 1. Salva agendamento — dataHora sempre como número (ms) para compatibilidade com index
     await addDoc(collection(db,'agendamentos'), {
       nome,
       whatsapp: wpp,
       servico:  servico.nome,
       precoServico: servico.preco||0,
       obs,
-      dataHora: vaga.dataHora,
+      dataHora: typeof vaga.dataHora === 'number' ? vaga.dataHora : normTs(vaga.dataHora),
       vagaId:   vaga.id,
       atendido: false,
       origem:   'booking',
