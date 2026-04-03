@@ -13,36 +13,15 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
   <script>
-    // Registra Service Worker do FCM automaticamente
+    // Registra o Service Worker real (firebase-messaging-sw.js na mesma pasta)
     if ('serviceWorker' in navigator) {
-      // Gera o SW inline via Blob para não precisar de arquivo externo
-      const swCode = `
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
-firebase.initializeApp({
-  apiKey:"AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
-  authDomain:"barbercash-f6891.firebaseapp.com",
-  projectId:"barbercash-f6891",
-  storageBucket:"barbercash-f6891.firebasestorage.app",
-  messagingSenderId:"222760224701",
-  appId:"1:222760224701:web:afa93064a97b10c28c34d4"
-});
-const messaging = firebase.messaging();
-messaging.onBackgroundMessage(payload => {
-  const n = payload.notification || {};
-  self.registration.showNotification(n.title || 'BarberCash', {
-    body: n.body || '',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
-    data: payload.data || {}
-  });
-});
-`;
-      const blob = new Blob([swCode], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(blob);
-      navigator.serviceWorker.register(swUrl, { scope: '/' })
-        .then(reg => { window._fcmSwReg = reg; })
-        .catch(e => console.warn('SW FCM:', e));
+      navigator.serviceWorker
+        .register('./firebase-messaging-sw.js', { scope: '/' })
+        .then(reg => {
+          window._fcmSwReg = reg;
+          console.log('[FCM] SW registrado:', reg.scope);
+        })
+        .catch(e => console.warn('[FCM] Falha ao registrar SW:', e.message));
     }
   </script>
   <script>
@@ -7825,16 +7804,21 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
     // ══════════════════════════════════════════════════════════════════
     // VAPID key pública do projeto Firebase (gere em Project Settings > Cloud Messaging)
     // Substitua pela sua VAPID key real após gerar no console Firebase
-    const FCM_VAPID_KEY = 'SUBSTITUA_PELA_SUA_VAPID_KEY_PUBLICA';
+    const FCM_VAPID_KEY = 'gSUtDSnWdOe6K-Ku6ibAhTG4nOZpnNz_jbJKALCV5T0';
 
     let _fcmMessaging = null;
+    let _fcmIniciado  = false;
 
     async function iniciarFCM() {
       if (!('Notification' in window)) return;
+      if (!('serviceWorker' in navigator)) return;
       if (Notification.permission === 'denied') return;
+      if (_fcmIniciado) return;
+      _fcmIniciado = true;
+
       try {
-        // Instância compat (usada junto com o SW)
-        if (!firebase.apps.find(a => a.name === '[DEFAULT]')) {
+        // Usa instância compat já carregada no <head>
+        if (!firebase.apps.length) {
           firebase.initializeApp({
             apiKey:"AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
             authDomain:"barbercash-f6891.firebaseapp.com",
@@ -7852,39 +7836,51 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
           showFeedback(`🔔 ${n.title || 'Notificação'}: ${n.body || ''}`, 'ok');
         });
 
-        // Se já tem token salvo, valida; caso contrário obtém novo
-        if (state.pushToken) return;
-        await solicitarPermissaoPush();
+        // Só pede token se ainda não tem
+        if (!state.pushToken) await solicitarPermissaoPush();
+
       } catch (e) {
-        console.warn('FCM init:', e.message || e);
+        console.warn('[FCM] init:', e.message || e);
+        _fcmIniciado = false;
       }
     }
 
     async function solicitarPermissaoPush() {
+      if (!_fcmMessaging) { await iniciarFCM(); return; }
       try {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
-          showFeedback('Notificações bloqueadas nas configurações do navegador.', 'erro');
+          showFeedback('Notificações bloqueadas. Habilite nas config. do navegador.', 'erro');
           return;
         }
-        const swReg = window._fcmSwReg || await navigator.serviceWorker.ready;
-        const token = await _fcmMessaging.getToken({
-          vapidKey: FCM_VAPID_KEY,
-          serviceWorkerRegistration: swReg
-        });
-        if (token) {
-          state.pushToken = token;
-          // Salva token no Firestore para uso no backend
-          try {
-            await setDoc(doc(db, 'users', state.uid, 'config', 'push'), {
-              token, updatedAt: Date.now(), plataforma: 'web'
-            }, { merge: true });
-          } catch (e) { console.warn('Salvar token:', e); }
-          saveConfig();
-          showFeedback('🔔 Notificações push ativadas!', 'ok');
+
+        // Espera SW estar pronto (arquivo real registrado no <head>)
+        let swReg = window._fcmSwReg;
+        if (!swReg) {
+          try { swReg = await navigator.serviceWorker.ready; }
+          catch (e) { console.warn('[FCM] SW não disponível:', e); }
         }
+
+        const tokenOpts = { vapidKey: FCM_VAPID_KEY };
+        if (swReg) tokenOpts.serviceWorkerRegistration = swReg;
+
+        const token = await _fcmMessaging.getToken(tokenOpts);
+        if (!token) { console.warn('[FCM] Token vazio — verifique a VAPID key.'); return; }
+
+        state.pushToken = token;
+        // Salva token no Firestore (para envio via backend / Cloud Functions)
+        try {
+          await setDoc(doc(db, 'users', state.uid, 'config', 'push'), {
+            token, updatedAt: Date.now(), plataforma: 'web'
+          }, { merge: true });
+        } catch (e) { console.warn('[FCM] Salvar token Firestore:', e); }
+
+        saveConfig();
+        showFeedback('🔔 Notificações push ativadas!', 'ok');
+        render(); // atualiza status em Configurações
+
       } catch (e) {
-        console.warn('FCM token:', e.message || e);
+        console.warn('[FCM] getToken:', e.message || e);
       }
     }
 
