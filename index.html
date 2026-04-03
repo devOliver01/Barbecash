@@ -2245,7 +2245,7 @@
 
     .fin-cards {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 5fr 7fr;
       gap: 8px;
       margin-bottom: 12px
     }
@@ -4690,35 +4690,49 @@
 
     // ── CLIENTES ──────────────────────────────────────────────────────────────────
     function construirPerfisClientes() {
-      // Agrupa agendamentos por cliente (por nome normalizado ou whatsapp)
       const mapa = new Map();
+
+      // Agendamentos
       state.agendamentos.forEach(ag => {
-        const chave = (ag.whatsapp || '').replace(/\D/g, '') || ag.nome || '?';
-        if (!mapa.has(chave)) mapa.set(chave, { nome: ag.nome || '?', wpp: (ag.whatsapp || '').replace(/\D/g, ''), visitas: [], totalGasto: 0, servicos: [] });
+        const chave = (ag.whatsapp || '').replace(/\D/g, '') || (ag.nome || '').trim().toLowerCase() || '?';
+        if (!mapa.has(chave)) mapa.set(chave, { nome: ag.nome || '?', wpp: (ag.whatsapp || '').replace(/\D/g, ''), visitas: [], totalGasto: 0, servicos: [], valoresPorVisita: [] });
         const c = mapa.get(chave);
         if (ag.dataHora) c.visitas.push(ag.dataHora);
-        if (ag.valor) c.totalGasto += ag.valor;
-        if (ag.servico) c.servicos.push(ag.servico);
+        // usa precoServico OU valor (compatibilidade)
+        const val = ag.precoServico || ag.valor || 0;
+        c.totalGasto += val;
+        c.servicos.push(ag.servico || '');
+        c.valoresPorVisita.push(val);
       });
-      // Também considera registros com nome
+
+      // Registros com nomeCliente
       state.registros.forEach(r => {
-        if (!r.nomeCliente) return;
-        const chave = r.nomeCliente.trim().toLowerCase();
-        if (!mapa.has(chave)) mapa.set(chave, { nome: r.nomeCliente, wpp: '', visitas: [], totalGasto: 0, servicos: [] });
+        if (!r.nomeCliente && !r.clienteNome) return;
+        const nomeCli = r.nomeCliente || r.clienteNome;
+        const chave = nomeCli.trim().toLowerCase();
+        if (!mapa.has(chave)) mapa.set(chave, { nome: nomeCli, wpp: r.whatsapp || '', visitas: [], totalGasto: 0, servicos: [], valoresPorVisita: [] });
         const c = mapa.get(chave);
         const ts = new Date(r.data + 'T' + (r.hora || '12:00') + ':00').getTime();
         c.visitas.push(ts);
-        c.totalGasto += r.valor + (r.gorjeta || 0);
-        if (r.corte) c.servicos.push(r.corte);
+        const val = r.valor + (r.gorjeta || 0);
+        c.totalGasto += val;
+        c.servicos.push(r.corte || '');
+        c.valoresPorVisita.push(val);
       });
+
       const agora = Date.now();
       return Array.from(mapa.values()).map(c => {
-        c.visitas = c.visitas.filter(Boolean).sort((a, b) => b - a);
+        // Ordena visitas e mantém relação com serviços/valores
+        const paired = c.visitas.map((ts, i) => ({ ts, servico: c.servicos[i] || '', valor: c.valoresPorVisita[i] || 0 }))
+          .filter(x => x.ts).sort((a, b) => b.ts - a.ts);
+        c.visitas = paired.map(x => x.ts);
+        c.servicos = paired.map(x => x.servico);
+        c.valoresPorVisita = paired.map(x => x.valor);
         c.ultimaVisita = c.visitas[0] || 0;
         c.qtdVisitas = c.visitas.length;
-        // Calcula intervalo médio
         if (c.visitas.length >= 2) {
-          const diffs = []; for (let i = 0; i < c.visitas.length - 1; i++) diffs.push(c.visitas[i] - c.visitas[i + 1]);
+          const diffs = [];
+          for (let i = 0; i < c.visitas.length - 1; i++) diffs.push(c.visitas[i] - c.visitas[i + 1]);
           c.intervaloMedio = Math.round(diffs.reduce((s, d) => s + d, 0) / diffs.length / (1000 * 60 * 60 * 24));
         } else { c.intervaloMedio = 0; }
         c.diasSemVir = c.ultimaVisita ? Math.round((agora - c.ultimaVisita) / (1000 * 60 * 60 * 24)) : 999;
@@ -4726,6 +4740,10 @@
         c.fiel = c.qtdVisitas >= 5 && !c.sumiu;
         c.ticketMedio = c.qtdVisitas > 0 ? c.totalGasto / c.qtdVisitas : 0;
         c.diafavorito = diaDaSemanaFavorito(c.visitas);
+        // Serviço favorito
+        const svcCount = {};
+        c.servicos.forEach(s => { if (s) svcCount[s] = (svcCount[s] || 0) + 1; });
+        c.servicoFavorito = Object.keys(svcCount).sort((a,b) => svcCount[b]-svcCount[a])[0] || '—';
         return c;
       }).sort((a, b) => {
         if (a.sumiu && !b.sumiu) return -1;
@@ -4757,6 +4775,49 @@
       const perfis = construirPerfisClientes();
       const sumiram = perfis.filter(c => c.sumiu);
       let tabAtual = state._cliTab || 'todos';
+
+      // ── Painel de stats ──
+      if (perfis.length > 0) {
+        const totalClientes = perfis.length;
+        const fieis = perfis.filter(c => c.fiel).length;
+        const ticketGeral = perfis.reduce((s, c) => s + c.ticketMedio, 0) / totalClientes;
+        const melhorCliente = perfis.filter(c => c.totalGasto > 0).sort((a,b) => b.totalGasto - a.totalGasto)[0];
+        const statsEl = div('');
+        statsEl.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px';
+        statsEl.innerHTML = `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--gold)">${totalClientes}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px">Clientes</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--green)">${fieis}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px">Fiéis ⭐</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--gold)">${brl(ticketGeral)}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px">Ticket médio</div>
+          </div>`;
+        wrap.appendChild(statsEl);
+
+        // Melhor cliente destaque
+        if (melhorCliente && melhorCliente.totalGasto > 0) {
+          const best = div('');
+          best.style.cssText = 'background:linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.14));border:1px solid var(--gold-dim);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;cursor:pointer';
+          best.onclick = () => abrirSheetCliente(melhorCliente);
+          const ini = melhorCliente.nome[0].toUpperCase();
+          best.innerHTML = `
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-dim);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:16px;color:var(--gold-light);flex-shrink:0">${ini}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;color:var(--gold-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">👑 Top cliente</div>
+              <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${melhorCliente.nome}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)">${brl(melhorCliente.totalGasto)}</div>
+              <div style="font-size:10px;color:var(--muted)">${melhorCliente.qtdVisitas} visitas</div>
+            </div>`;
+          wrap.appendChild(best);
+        }
+      }
 
       // ── Busca ──
       const searchBar = div('cli-search-bar');
@@ -4854,7 +4915,8 @@
         const d = new Date(ts); const diasAtras = Math.round((agora - ts) / (1000 * 60 * 60 * 24));
         const diaSem = d.toLocaleDateString('pt-BR', { weekday: 'long' });
         const servico = c.servicos[i] || 'Corte';
-        return `<div class="sheet-hist-item"><div><div class="sheet-hist-nome">${servico}</div><div class="sheet-hist-data">há ${diasAtras} dias · ${diaSem}</div></div><div class="sheet-hist-val">${brl(c.ticketMedio)}</div></div>`;
+        const val = c.valoresPorVisita[i] || 0;
+        return `<div class="sheet-hist-item"><div><div class="sheet-hist-nome">${servico}</div><div class="sheet-hist-data">há ${diasAtras} dias · ${diaSem}</div></div><div class="sheet-hist-val">${val > 0 ? brl(val) : '—'}</div></div>`;
       }).join('');
       const sumiuBanner = c.sumiu ? `<div class="sumiu-banner"><div style="font-size:22px">⏰</div><div class="sumiu-banner-text"><div class="sumiu-banner-title">Sumiu há ${c.diasSemVir} dias</div><div class="sumiu-banner-sub">Corta a cada ${c.intervaloMedio}d — está com ${c.diasSemVir}d. Hora de chamar!</div></div><button class="btn-wpp-green" onclick="chamarClienteWpp('${c.wpp}','${c.nome.replace(/'/g, "\\'")}')">💬 Chamar</button></div>` : '';
       const r28 = 28, circ = 2 * Math.PI * r28;
@@ -4880,6 +4942,8 @@
         <div class="home-stat-item"><div class="home-stat-val">${c.intervaloMedio > 0 ? c.intervaloMedio + 'd' : '—'}</div><div class="home-stat-label">Intervalo</div></div>
         <div class="home-stat-item"><div class="home-stat-val" style="color:var(--gold);font-size:14px">${brl(c.ticketMedio)}</div><div class="home-stat-label">Ticket médio</div></div>
         <div class="home-stat-item"><div class="home-stat-val" style="color:var(--green)">${c.diafavorito}</div><div class="home-stat-label">Dia fav.</div></div>
+      </div>
+      ${c.servicoFavorito && c.servicoFavorito !== '—' ? `<div style="margin-top:10px;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:12px;display:flex;align-items:center;gap:6px"><span>✂️</span><span style="color:var(--muted)">Serviço favorito:</span><span style="color:var(--text);font-weight:500">${c.servicoFavorito}</span></div>` : ''}
       </div>
       ${histHtml ? `<div class="sheet-section-title">🕐 Histórico</div>${histHtml}` : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px 0">Sem histórico de visitas</div>'}
     </div>
@@ -7183,6 +7247,15 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       });
       const labelR = document.getElementById('retorno-dias-label');
       if (labelR) labelR.textContent = `${dias} dias após atendimento`;
+      // Massa — reset filtro e contagem
+      _massaFiltro = 'todos';
+      ['todos','agendados','atendidos'].forEach(k => {
+        const btn = document.getElementById('massa-filtro-' + k);
+        if (btn) btn.classList.toggle('active', k === 'todos');
+      });
+      const prog = document.getElementById('massa-progresso');
+      if (prog) prog.style.display = 'none';
+      setTimeout(_atualizarContagemMassa, 80);
       openModal('modalLembretes');
     };
 
@@ -7366,6 +7439,78 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       });
       _atualizarContagemMassa();
     };
+
+    window.dispararMassaUmAUm = async function() {
+      const texto = (document.getElementById('massa-texto') || {}).value || '';
+      if (!texto.trim()) { showFeedback('Digite uma mensagem antes de disparar!', 'erro'); return; }
+      const clientes = _getClientesMassa();
+      if (!clientes.length) { showFeedback('Nenhum cliente encontrado!', 'erro'); return; }
+
+      _massaCancelado = false;
+      const prog = document.getElementById('massa-progresso');
+      const bar = document.getElementById('massa-prog-bar');
+      const lbl = document.getElementById('massa-prog-label');
+      const titulo = document.getElementById('massa-prog-titulo');
+      if (prog) prog.style.display = 'block';
+
+      for (let i = 0; i < clientes.length; i++) {
+        if (_massaCancelado) break;
+        const c = clientes[i];
+        const pct = Math.round((i / clientes.length) * 100);
+        if (bar) bar.style.width = pct + '%';
+        if (lbl) lbl.textContent = `${i} de ${clientes.length} enviados`;
+        if (titulo) titulo.textContent = `Enviando para ${c.nome}...`;
+        const msgFinal = texto.replace(/\{nome\}/gi, c.nome);
+        window.open(`https://wa.me/55${c.wpp}?text=${encodeURIComponent(msgFinal)}`, '_blank');
+        if (i < clientes.length - 1) {
+          await new Promise(res => setTimeout(res, 8000));
+        }
+      }
+
+      if (!_massaCancelado) {
+        if (bar) bar.style.width = '100%';
+        if (lbl) lbl.textContent = `${clientes.length} de ${clientes.length} enviados ✅`;
+        if (titulo) titulo.textContent = 'Disparo concluído!';
+        showFeedback(`✅ Disparo concluído! ${clientes.length} cliente${clientes.length>1?'s':''} contatado${clientes.length>1?'s':''}`, 'ok');
+      } else {
+        if (titulo) titulo.textContent = 'Disparo cancelado.';
+        showFeedback('Disparo cancelado.', 'erro');
+      }
+    };
+
+    window.cancelarDisparo = function() {
+      _massaCancelado = true;
+    };
+
+    window.copiarParaTransmissao = function() {
+      const texto = (document.getElementById('massa-texto') || {}).value || '';
+      if (!texto.trim()) { showFeedback('Digite uma mensagem primeiro!', 'erro'); return; }
+      const clientes = _getClientesMassa();
+      if (!clientes.length) { showFeedback('Nenhum cliente encontrado!', 'erro'); return; }
+      const nums = clientes.map(c => '+55' + c.wpp).join('\n');
+      const conteudo = `=== MENSAGEM ===\n${texto}\n\n=== NÚMEROS (${clientes.length}) ===\n${nums}`;
+      const copiar = (txt) => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(txt).then(() => {
+            showFeedback(`📋 Copiado! ${clientes.length} número${clientes.length>1?'s':''} + mensagem`, 'ok');
+          }).catch(() => _copiarFallback(txt));
+        } else {
+          _copiarFallback(txt);
+        }
+      };
+      copiar(conteudo);
+    };
+
+    function _copiarFallback(texto) {
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      document.body.removeChild(ta);
+      showFeedback('📋 Copiado para a área de transferência!', 'ok');
+    }
 
     // ── BLOQUEIO DE HORÁRIO ────────────────────────────────────────────────────────
     window.abrirModalBloqueio = function() {
