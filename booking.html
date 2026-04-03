@@ -10,8 +10,24 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#080808;--surface:#111;--surface2:#1a1a1a;--border:#2a2a2a;--border2:#333;--gold:#c9a84c;--gold-light:#e8c870;--gold-dim:#7a6230;--text:#f0ede8;--muted:#777;--muted2:#444;--red:#e05555;--green:#4caf78;}
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
-body{padding-bottom:60px}
+body{padding-bottom:60px;overflow-y:auto}
 #app{max-width:480px;margin:0 auto;padding:0 16px}
+@media(min-width:768px){
+  html,body{height:100%}
+  body{padding-bottom:0;display:flex;align-items:stretch;justify-content:center;background:#050505}
+  #app{max-width:640px;width:100%;padding:0 40px 60px;border-left:1px solid var(--border);border-right:1px solid var(--border);min-height:100vh;background:var(--bg)}
+  .hero{padding:48px 0 32px}
+  .hero-icon{width:80px;height:80px;font-size:40px;border-radius:22px}
+  .hero-title{font-size:36px}
+  .btn-gold{font-size:16px;padding:18px}
+  .slots-grid{grid-template-columns:repeat(4,1fr)}
+  .inp{font-size:16px}
+  .cal-grid{gap:4px}
+  .cal-day{font-size:13px;height:40px;max-height:40px}
+  .servico-card{padding:16px 20px}
+  .servico-nome{font-size:16px}
+  .servico-preco-val{font-size:19px}
+}
 /* HERO */
 .hero{text-align:center;padding:28px 0 20px}
 .hero-icon{width:64px;height:64px;background:var(--gold);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px}
@@ -97,9 +113,9 @@ textarea.inp{resize:none;height:80px;font-size:14px}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .cal-mes{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)}
 .cal-nav-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 14px;font-size:16px;line-height:1}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px}
-.cal-dow{text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 0}
-.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:13px;position:relative;border:1px solid transparent;transition:all .15s;background:var(--surface)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:12px;width:100%;box-sizing:border-box;max-width:100%}
+.cal-dow{text-align:center;font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:0;padding:2px 0;overflow:hidden}
+.cal-day{height:36px;max-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-size:12px;position:relative;border:1px solid transparent;transition:all .15s;background:var(--surface);min-width:0;overflow:hidden}
 .cal-day.vazio{background:transparent;border-color:transparent;cursor:default}
 .cal-day.passado{color:var(--muted2);cursor:default;background:transparent}
 .cal-day.sem-vagas{color:var(--muted2);cursor:default;background:transparent}
@@ -128,8 +144,9 @@ textarea.inp{resize:none;height:80px;font-size:14px}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, getDocs, addDoc, setDoc, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const FB = {
   apiKey:"AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
@@ -139,7 +156,11 @@ const FB = {
   messagingSenderId:"222760224701",
   appId:"1:222760224701:web:afa93064a97b10c28c34d4"
 };
-const db = getFirestore(initializeApp(FB));
+// Instância separada "booking" — não conflita com a sessão auth do index.html
+const _existingBooking = getApps().find(a => a.name === 'booking');
+const bookingApp = _existingBooking || initializeApp(FB, 'booking');
+const db  = getFirestore(bookingApp);
+const auth = getAuth(bookingApp);
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const S = {
@@ -148,7 +169,8 @@ const S = {
   vagas: [],
   cfg: {},
   sel: { servico:null, vaga:null, nome:'', wpp:'', obs:'' },
-  erroConfirm: ''
+  erroConfirm: '',
+  uidBarbeiro: null
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -165,48 +187,71 @@ const fmtWpp  = n  => { const d=n.replace(/\D/g,''); return d.length===11?`(${d.
 
 // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────────
 async function init() {
-  // 1. Config do admin
+  const urlParams = new URLSearchParams(window.location.search);
+  S.uidBarbeiro = urlParams.get('uid') || null;
+
+  // ── 0. Autenticação anônima — necessária para leitura de coleções protegidas ─
+  try { await signInAnonymously(auth); } catch(e) { console.warn('anon auth:', e); }
+
+  // ── 1. Carrega nome/config do barbeiro ──────────────────────────────────────
+  function atualizarHero(nomeUsuario, cfg){
+    const nome = cfg.nomeBarbearia || nomeUsuario || 'Barbearia';
+    document.getElementById('hero-title').textContent = nome;
+    document.title = 'Agendar · ' + nome;
+    const end = cfg.enderecoBarbearia || '';
+    document.getElementById('hero-info').innerHTML =
+      '<span><span class="live-dot"></span>Vagas em tempo real</span>' +
+      (end ? '<span style="color:var(--muted2)">·</span><span>' + end + '</span>' : '');
+  }
+
   try {
     const snap = await getDoc(doc(db,'admin','config'));
     S.cfg = snap.exists() ? snap.data() : {};
-    const nome = S.cfg.nomeBarbearia || 'Barbearia';
-    document.getElementById('hero-title').textContent = nome;
-    document.title = `Agendar · ${nome}`;
-    const end = S.cfg.enderecoBarbearia||'';
-    document.getElementById('hero-info').innerHTML =
-      `<span><span class="live-dot"></span>Vagas em tempo real</span>${end?`<span style="color:var(--muted2)">·</span><span>${end}</span>`:''}`;
-  } catch(e){ console.error('cfg:',e); }
+    atualizarHero('', S.cfg);
+  } catch(e){ console.warn('admin cfg:', e); }
 
-  // 2. Serviços — tenta cortesPublicos, senão pega do primeiro user
-  try {
-    if(S.cfg.cortesPublicos?.length){
-      S.servicos = S.cfg.cortesPublicos;
-    } else {
-      const users = await getDocs(collection(db,'users'));
-      for(const u of users.docs){
-        const c = await getDoc(doc(db,'users',u.id,'config','main'));
-        if(c.exists() && c.data().cortesLista?.length){ S.servicos=c.data().cortesLista; break; }
-      }
-    }
-  } catch(e){ console.error('servicos:',e); }
-
-  if(!S.servicos.length){
-    S.servicos=[{nome:'Corte Simples',preco:35},{nome:'Degradê',preco:45},{nome:'Barba',preco:30},{nome:'Corte + Barba',preco:70}];
+  // ── 2. SERVIÇOS em tempo real ────────────────────────────────────────────────
+  function aplicarServicos(lista, nomeUsuario){
+    if(!lista || !lista.length) return false;
+    S.servicos = lista;
+    if(nomeUsuario) atualizarHero(nomeUsuario, S.cfg);
+    if(S.sel.servico && !lista.find(s => s.nome === S.sel.servico.nome)) S.sel.servico = null;
+    if(S.step === 1) render();
+    return true;
   }
 
-  // 3. Listener tempo real nas vagas
-  try {
-    onSnapshot(
-      query(collection(db,'vagas'), orderBy('dataHora','asc')),
-      snap => {
-        S.vagas = snap.docs.map(d=>({id:d.id,...d.data()}))
-          .filter(v => v.dataHora > Date.now() && v.disponivel !== false);
-        // Se o cliente estiver escolhendo vaga, atualiza calendário ao vivo
-        if(S.step === 2){ renderCalBook(); }
-      },
-      e => { console.error('vagas listener:',e); }
-    );
-  } catch(e){ console.error('vagas:',e); }
+  if(S.uidBarbeiro){
+    // Mesmo padrão das vagas: onSnapshot em tempo real
+    // Index escreve em barbeiros/{uid} sempre que salva serviços
+    onSnapshot(doc(db,'barbeiros', S.uidBarbeiro), snap => {
+      if(!snap.exists()) return;
+      const d = snap.data();
+      aplicarServicos(d.cortesLista, d.nomeUsuario);
+      if(d.whatsapp) S.cfg.whatsapp = d.whatsapp;
+    });
+  } else {
+    onSnapshot(doc(db,'admin','config'), snap => {
+      if(!snap.exists()) return;
+      aplicarServicos(snap.data().cortesPublicos, '');
+    });
+  }
+
+
+  // ── 3. Listener de VAGAS em tempo real ──────────────────────────────────────
+  // Normaliza dataHora: aceita Timestamp Firestore ou número
+  function normTs(v){ if(!v) return 0; if(typeof v==='number') return v; if(v&&typeof v==='object'&&typeof v.seconds==='number') return v.seconds*1000+Math.floor((v.nanoseconds||0)/1e6); if(v&&typeof v.toMillis==='function') return v.toMillis(); return Number(v)||0; }
+
+  onSnapshot(
+    query(collection(db,'vagas'), orderBy('dataHora','asc')),
+    snap => {
+      const now = Date.now();
+      S.vagas = snap.docs.map(d => ({id:d.id,...d.data(),dataHora:normTs(d.data().dataHora)}))
+        .filter(v => v.dataHora > now && v.disponivel !== false)
+        .filter(v => !S.uidBarbeiro || !v.uid || v.uid === S.uidBarbeiro);
+      if(S.step === 2) renderCalBook();
+    },
+    e => console.error('vagas listener:', e)
+  );
 
   render();
 }
@@ -361,10 +406,28 @@ function renderCalBook(){
     const card = document.createElement('div');
     card.className = `vaga-card${sel?' selected':''}`;
     card.innerHTML = `<div class="vaga-hora">${horaStr}</div>`;
-    card.onclick = ()=>{ S.sel.vaga=v; renderCalBook(); };
+    card.onclick = ()=>{ S.sel.vaga=v; renderCalBook(); renderNavVaga(); };
     sGrid.appendChild(card);
   });
   slotsEl.appendChild(sGrid);
+
+  // Garante que o botão aparece mesmo após atualização em tempo real das vagas
+  renderNavVaga();
+}
+
+// Atualiza só o botão de navegação do step 2 sem re-renderizar tudo
+function renderNavVaga(){
+  const nav = document.getElementById('book-nav-vaga');
+  if(!nav) return;
+  // Remove botão anterior se existir
+  const btnExist = document.getElementById('btn-ir-dados');
+  if(btnExist) btnExist.remove();
+  if(S.sel.vaga){
+    const btn=document.createElement('button');
+    btn.className='btn-gold'; btn.id='btn-ir-dados'; btn.textContent='Meus dados →';
+    btn.onclick=()=>{ S.step=3; render(); };
+    nav.appendChild(btn);
+  }
 }
 
 // ── STEP 2: VAGA (CALENDÁRIO) ─────────────────────────────────────────────────
@@ -391,11 +454,11 @@ function renderVaga(){
   frag.appendChild(sec);
 
   const nav = document.createElement('div');
-  nav.className='btn-nav';
+  nav.className='btn-nav'; nav.id='book-nav-vaga';
   nav.innerHTML=`<button class="btn-outline" onclick="goBack()">← Voltar</button>`;
   if(S.sel.vaga){
     const btn=document.createElement('button');
-    btn.className='btn-gold'; btn.textContent='Meus dados →';
+    btn.className='btn-gold'; btn.id='btn-ir-dados'; btn.textContent='Meus dados →';
     btn.onclick=()=>{ S.step=3; render(); };
     nav.appendChild(btn);
   }
@@ -520,17 +583,19 @@ async function confirmar(){
   const {servico,vaga,nome,wpp,obs}=S.sel;
 
   try {
-    // 1. Salva agendamento
+    // 1. Salva agendamento — dataHora sempre como número (ms) para compatibilidade com index
     await addDoc(collection(db,'agendamentos'), {
       nome,
       whatsapp: wpp,
       servico:  servico.nome,
       precoServico: servico.preco||0,
       obs,
-      dataHora: vaga.dataHora,
+      dataHora: typeof vaga.dataHora === 'number' ? vaga.dataHora : normTs(vaga.dataHora),
       vagaId:   vaga.id,
       atendido: false,
       origem:   'booking',
+      uid:         S.uidBarbeiro||null,
+      uidBarbeiro: S.uidBarbeiro||null,
       criadoEm: Date.now()
     });
 
