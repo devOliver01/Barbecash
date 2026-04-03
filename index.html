@@ -306,7 +306,7 @@
     .header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 46px 20px 14px;
+      padding: 14px 20px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -2245,9 +2245,9 @@
 
     .fin-cards {
       display: grid;
-      grid-template-columns: 5fr 7fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-bottom: 12px
+      margin-bottom: 8px
     }
 
     .fin-card {
@@ -4384,25 +4384,26 @@
       c2.onclick = () => irTela('historico', document.getElementById('nav-historico'));
 
       cards.appendChild(c1); cards.appendChild(c2);
+      wrap.appendChild(cards);
 
-      // ── Meta mensal — destaque full-width ──
+      // ── Meta mensal — full-width abaixo dos cards ──
       if (metaMes > 0) {
         const r28 = 28, circ = 2 * Math.PI * r28, offset = circ * (1 - pctMeta / 100);
         const cFull = div('');
-        cFull.style.cssText = `background:linear-gradient(135deg,${pctMeta>=100?'#0d1f12,#0f2515':'#1a1500,#1e1800'});border:1px solid ${pctMeta>=100?'rgba(76,175,120,.3)':'var(--gold-dim)'};border-radius:16px;padding:18px;margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer`;
+        cFull.style.cssText = `background:linear-gradient(135deg,${pctMeta>=100?'#0d1f12,#0f2515':'#1a1500,#1e1800'});border:1px solid ${pctMeta>=100?'rgba(76,175,120,.3)':'var(--gold-dim)'};border-radius:16px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer`;
         cFull.onclick = () => irTela('historico', document.getElementById('nav-historico'));
         cFull.innerHTML = `
           <div style="flex:1;min-width:0">
             <div style="font-size:10px;color:${pctMeta>=100?'var(--green)':'var(--gold-dim)'};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">🎯 Meta Mensal</div>
-            <div class="fin-card-val${blur}" style="font-family:'Playfair Display',serif;font-size:28px;color:${pctMeta>=100?'var(--green)':'var(--gold)'};margin-bottom:4px">${brl(totalMes)}</div>
+            <div class="fin-card-val${blur}" style="font-family:'Playfair Display',serif;font-size:26px;color:${pctMeta>=100?'var(--green)':'var(--gold)'};margin-bottom:4px">${brl(totalMes)}</div>
             <div style="font-size:12px;color:var(--muted)">de ${brl(metaMes)} · ${regMes.length} cortes</div>
-            <div style="margin-top:10px;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden">
+            <div style="margin-top:10px;height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden">
               <div style="width:${pctMeta}%;height:100%;background:${pctMeta>=100?'var(--green)':'linear-gradient(90deg,var(--gold-dim),var(--gold))'};border-radius:3px;transition:width .8s ease"></div>
             </div>
             ${pctMeta>=100?'<div style="font-size:11px;color:var(--green);margin-top:5px">✓ Meta atingida!</div>':''}
           </div>
-          <div style="width:76px;height:76px;position:relative;flex-shrink:0">
-            <svg viewBox="0 0 76 76" style="transform:rotate(-90deg);width:76px;height:76px">
+          <div style="width:72px;height:72px;position:relative;flex-shrink:0">
+            <svg viewBox="0 0 76 76" style="transform:rotate(-90deg);width:72px;height:72px">
               <circle cx="38" cy="38" r="${r28}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="7"/>
               <circle cx="38" cy="38" r="${r28}" fill="none" stroke="${pctMeta>=100?'var(--green)':'var(--gold)'}" stroke-width="7"
                 stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" stroke-linecap="round"
@@ -4412,10 +4413,8 @@
               <span style="font-family:'Playfair Display',serif;font-size:16px;color:${pctMeta>=100?'var(--green)':'var(--gold)'};font-weight:700">${pctMeta}%</span>
             </div>
           </div>`;
-        cards.appendChild(cFull);
+        wrap.appendChild(cFull);
       }
-
-      wrap.appendChild(cards);
 
       // ── Lembretes WhatsApp — banner de agendamentos próximos ──
       if (state.lembreteConfig && state.lembreteConfig.ativo) {
@@ -6371,6 +6370,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
 
     // ── AGENDAMENTOS (tempo real) ─────────────────────────────────────────────────
     let _agendaSubFiltro = 'pendentes';
+    if (typeof state._agendaSubFiltro === 'undefined') state._agendaSubFiltro = 'pendentes';
 
     // Normaliza dataHora: Firestore Timestamp → número (ms)
     function normTs(val) {
@@ -6461,10 +6461,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
 
       const filtro = state._agendaFiltro || 'hoje';
 
-      // ── Dropdown de período — meses com vagas ──
-      // Coleta meses únicos que têm pelo menos 1 vaga
+      // ── Dropdown de período — meses com vagas OU agendamentos ──
+      // Coleta meses únicos que têm pelo menos 1 vaga OU 1 agendamento
       const mesesComVagas = new Set(
         state.vagas.map(v => v.dataHora ? new Date(v.dataHora).toISOString().slice(0,7) : null).filter(Boolean)
+      );
+      const mesesComAgendamentos = new Set(
+        state.agendamentos.map(a => a.dataHora ? new Date(a.dataHora).toISOString().slice(0,7) : null).filter(Boolean)
       );
 
       const filtroOpts = [['hoje','Hoje'],['semana','Esta semana']];
@@ -6473,7 +6476,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
         const d = new Date(agora2.getFullYear(), agora2.getMonth() - i, 1);
         const key = 'mes:' + d.toISOString().slice(0,7);
         const anoMes = d.toISOString().slice(0,7);
-        if (mesesComVagas.has(anoMes)) {
+        if (mesesComVagas.has(anoMes) || mesesComAgendamentos.has(anoMes)) {
           const label = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
           filtroOpts.push([key, label]);
         }
@@ -6599,46 +6602,65 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
         return c;
       };
 
-      // ── Seção PENDENTES ──
+      // ── Filtro Pendentes / Atendidos — botões toggle ──
       const agPendentes = agFiltro.filter(a => !a.atendido);
       const agAtendidos = agFiltro.filter(a => a.atendido);
 
-      function renderSecao(lista, titulo, corTitulo, iconeTitulo) {
-        if (!lista.length) return;
-        const secHeader = div('');
-        secHeader.style.cssText = `display:flex;align-items:center;gap:8px;margin:16px 0 10px 2px;padding-bottom:8px;border-bottom:1px solid var(--border)`;
-        secHeader.innerHTML = `
-          <span style="font-size:14px">${iconeTitulo}</span>
-          <span style="font-family:'Playfair Display',serif;font-size:14px;color:${corTitulo};letter-spacing:.5px">${titulo}</span>
-          <span style="margin-left:auto;font-size:11px;background:${corTitulo === 'var(--gold)' ? 'rgba(201,168,76,.12)' : 'rgba(76,175,120,.12)'};color:${corTitulo};border-radius:6px;padding:2px 8px">${lista.length}</span>`;
-        listCard.appendChild(secHeader);
+      // Garante que o subfiltro é válido; se não houver pendentes mostra atendidos
+      if (!state._agendaSubFiltro) state._agendaSubFiltro = 'pendentes';
+      if (state._agendaSubFiltro === 'pendentes' && agPendentes.length === 0 && agAtendidos.length > 0) {
+        state._agendaSubFiltro = 'atendidos';
+      }
+      const subFiltro = state._agendaSubFiltro;
 
+      const toggleRow = div('');
+      toggleRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px';
+
+      const btnPend = document.createElement('button');
+      btnPend.style.cssText = `flex:1;padding:10px 8px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;border:1px solid ${subFiltro==='pendentes'?'var(--gold)':'var(--border)'};background:${subFiltro==='pendentes'?'rgba(201,168,76,.12)':'var(--surface2)'};color:${subFiltro==='pendentes'?'var(--gold)':'var(--muted)'}`;
+      btnPend.innerHTML = `⏳ Pendentes <span style="font-size:11px;background:${subFiltro==='pendentes'?'rgba(201,168,76,.2)':'rgba(255,255,255,.06)'};border-radius:10px;padding:1px 7px;margin-left:4px">${agPendentes.length}</span>`;
+      btnPend.onclick = () => { state._agendaSubFiltro = 'pendentes'; render(); };
+
+      const btnAtend = document.createElement('button');
+      btnAtend.style.cssText = `flex:1;padding:10px 8px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;border:1px solid ${subFiltro==='atendidos'?'var(--green)':'var(--border)'};background:${subFiltro==='atendidos'?'rgba(76,175,120,.12)':'var(--surface2)'};color:${subFiltro==='atendidos'?'var(--green)':'var(--muted)'}`;
+      btnAtend.innerHTML = `✅ Atendidos <span style="font-size:11px;background:${subFiltro==='atendidos'?'rgba(76,175,120,.2)':'rgba(255,255,255,.06)'};border-radius:10px;padding:1px 7px;margin-left:4px">${agAtendidos.length}</span>`;
+      btnAtend.onclick = () => { state._agendaSubFiltro = 'atendidos'; render(); };
+
+      toggleRow.appendChild(btnPend);
+      toggleRow.appendChild(btnAtend);
+      listCard.appendChild(toggleRow);
+
+      // Lista conforme subfiltro selecionado
+      const listaAtiva = subFiltro === 'pendentes' ? agPendentes : agAtendidos;
+
+      if (!listaAtiva.length) {
+        const vz = div('');
+        vz.style.cssText = 'text-align:center;color:var(--muted);padding:24px 0;font-size:13px';
+        vz.innerHTML = subFiltro === 'pendentes'
+          ? '<div style="font-size:22px;margin-bottom:6px">✅</div>Nenhum pendente neste período'
+          : '<div style="font-size:22px;margin-bottom:6px">📭</div>Nenhum atendido neste período';
+        listCard.appendChild(vz);
+      } else {
         // Agrupa por data
-        const gruposSecao = {};
-        lista.forEach(a => {
+        const gruposAtivos = {};
+        listaAtiva.forEach(a => {
           const ds = new Date(a.dataHora||0).toISOString().slice(0,10);
-          if (!gruposSecao[ds]) gruposSecao[ds] = [];
-          gruposSecao[ds].push(a);
+          if (!gruposAtivos[ds]) gruposAtivos[ds] = [];
+          gruposAtivos[ds].push(a);
         });
-
-        Object.keys(gruposSecao).sort().forEach(ds => {
+        Object.keys(gruposAtivos).sort().forEach(ds => {
           const grpDate = new Date(ds + 'T12:00:00');
           const ehH = ds === hojeStr;
-          const grpAgs = gruposSecao[ds];
+          const grpAgs = gruposAtivos[ds];
           const label = div('');
           label.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px 2px';
           const diasNome = grpDate.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
-          const badgesHtml = [
-            ehH ? `<span style="font-size:10px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:4px;padding:1px 6px">hoje</span>` : '',
-          ].filter(Boolean).join('');
-          label.innerHTML = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">${diasNome}</span>${badgesHtml}</div><span style="font-size:12px;color:var(--muted)">${grpAgs.length}</span>`;
+          const badgeH = ehH ? `<span style="font-size:10px;background:rgba(201,168,76,.15);color:var(--gold);border-radius:4px;padding:1px 6px">hoje</span>` : '';
+          label.innerHTML = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">${diasNome}</span>${badgeH}</div><span style="font-size:12px;color:var(--muted)">${grpAgs.length}</span>`;
           listCard.appendChild(label);
           grpAgs.forEach(ag => listCard.appendChild(renderCard(ag)));
         });
       }
-
-      renderSecao(agPendentes, 'Pendentes', 'var(--gold)', '⏳');
-      renderSecao(agAtendidos, 'Atendidos', 'var(--green)', '✅');
 
       frag.appendChild(listCard);
       return frag;
