@@ -4064,38 +4064,99 @@
       if (totalOntem > 0) { const diff = Math.round(((totalHoje - totalOntem) / totalOntem) * 100); subHoje = `<span class="${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '↑' : '↓'} ${Math.abs(diff)}%</span> vs ontem`; }
       else subHoje = `${regHoje.length} atendimento${regHoje.length !== 1 ? 's' : ''}`;
 
+      // ── Metas ──
+      const metaDia = state.metas.dia || 0;
+      const [semIni, semFim] = weekRange();
+      const regSem = state.registros.filter(r => r.data >= semIni && r.data <= semFim && r.barbeiro === state.barbeiroAtual);
+      const totalSem = regSem.reduce((s, r) => s + r.valor + (r.gorjeta || 0), 0);
+      const metaSem = state.metas.sem || 0;
+      const pctMetaDia = metaDia > 0 ? Math.min(100, Math.round((totalHoje / metaDia) * 100)) : 0;
+      const pctMetaSem = metaSem > 0 ? Math.min(100, Math.round((totalSem / metaSem) * 100)) : 0;
+
       const cards = div('fin-cards');
 
+      // Card 1 — Hoje
       const c1 = div('fin-card');
       c1.innerHTML = `<div class="fin-card-label">Hoje</div><div class="fin-card-val${blur}">${brl(totalHoje)}</div><div class="fin-card-sub">${subHoje}</div>`;
       c1.onclick = () => irTela('historico', document.getElementById('nav-historico'));
 
+      // Card 2 — Esta semana
       const c2 = div('fin-card');
-      c2.innerHTML = `<div class="fin-card-label">Este mês</div><div class="fin-card-val${blur}">${brl(totalMes)}</div><div class="fin-card-sub"><span class="up">✂</span> ${regMes.length} cortes</div>`;
+      c2.innerHTML = `<div class="fin-card-label">Esta semana</div><div class="fin-card-val${blur}">${brl(totalSem)}</div><div class="fin-card-sub"><span class="up">✂</span> ${regSem.length} cortes</div>`;
       c2.onclick = () => irTela('historico', document.getElementById('nav-historico'));
 
       cards.appendChild(c1); cards.appendChild(c2);
 
-      // Card meta mensal full-width com círculo SVG
+      // ── Faixa de metas pequenas (dia + semana) ──
+      if (metaDia > 0 || metaSem > 0) {
+        const miniMetas = div('');
+        miniMetas.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px';
+
+        if (metaDia > 0) {
+          const barDia = div('');
+          barDia.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px';
+          barDia.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Meta dia</span>
+              <span style="font-size:11px;color:${pctMetaDia>=100?'var(--green)':'var(--gold)'};font-weight:600">${pctMetaDia}%</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+              <div style="width:${pctMetaDia}%;height:100%;background:${pctMetaDia>=100?'var(--green)':'var(--gold)'};border-radius:2px;transition:width .6s"></div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:5px">${blur ? '•••' : brl(totalHoje)} / ${brl(metaDia)}</div>`;
+          miniMetas.appendChild(barDia);
+        }
+
+        if (metaSem > 0) {
+          const barSem = div('');
+          barSem.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px';
+          barSem.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Meta semana</span>
+              <span style="font-size:11px;color:${pctMetaSem>=100?'var(--green)':'var(--blue)'};font-weight:600">${pctMetaSem}%</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+              <div style="width:${pctMetaSem}%;height:100%;background:${pctMetaSem>=100?'var(--green)':'var(--blue)'};border-radius:2px;transition:width .6s"></div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:5px">${blur ? '•••' : brl(totalSem)} / ${brl(metaSem)}</div>`;
+          miniMetas.appendChild(barSem);
+        }
+
+        // Se só tem uma meta pequena, full-width
+        if ((metaDia > 0) !== (metaSem > 0)) miniMetas.style.gridTemplateColumns = '1fr';
+        cards.appendChild(miniMetas);
+      }
+
+      // ── Meta mensal — destaque full-width ──
       if (metaMes > 0) {
         const r28 = 28, circ = 2 * Math.PI * r28, offset = circ * (1 - pctMeta / 100);
-        const cFull = div('fin-card full');
+        const cFull = div('');
+        cFull.style.cssText = `background:linear-gradient(135deg,${pctMeta>=100?'#0d1f12,#0f2515':'#1a1500,#1e1800'});border:1px solid ${pctMeta>=100?'rgba(76,175,120,.3)':'var(--gold-dim)'};border-radius:16px;padding:18px;margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer`;
+        cFull.onclick = () => irTela('historico', document.getElementById('nav-historico'));
         cFull.innerHTML = `
-      <div>
-        <div class="fin-card-label">Meta mensal — ${pctMeta}%</div>
-        <div class="fin-card-val${blur}">${brl(totalMes)} <span style="font-size:14px;color:var(--muted)">/ ${brl(metaMes)}</span></div>
-      </div>
-      <div style="width:70px;height:70px;position:relative;flex-shrink:0">
-        <svg viewBox="0 0 70 70" style="transform:rotate(-90deg);width:70px;height:70px">
-          <circle cx="35" cy="35" r="${r28}" fill="none" stroke="var(--border)" stroke-width="6"/>
-          <circle cx="35" cy="35" r="${r28}" fill="none" stroke="${pctMeta >= 100 ? 'var(--green)' : 'var(--gold)'}" stroke-width="6"
-            stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" stroke-linecap="round"
-            style="transition:stroke-dashoffset .8s ease"/>
-        </svg>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;color:${pctMeta >= 100 ? 'var(--green)' : 'var(--gold)'}">${pctMeta}%</div>
-      </div>`;
+          <div style="flex:1;min-width:0">
+            <div style="font-size:10px;color:${pctMeta>=100?'var(--green)':'var(--gold-dim)'};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">🎯 Meta Mensal</div>
+            <div class="fin-card-val${blur}" style="font-family:'Playfair Display',serif;font-size:28px;color:${pctMeta>=100?'var(--green)':'var(--gold)'};margin-bottom:4px">${brl(totalMes)}</div>
+            <div style="font-size:12px;color:var(--muted)">de ${brl(metaMes)} · ${regMes.length} cortes</div>
+            <div style="margin-top:10px;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden">
+              <div style="width:${pctMeta}%;height:100%;background:${pctMeta>=100?'var(--green)':'linear-gradient(90deg,var(--gold-dim),var(--gold))'};border-radius:3px;transition:width .8s ease"></div>
+            </div>
+            ${pctMeta>=100?'<div style="font-size:11px;color:var(--green);margin-top:5px">✓ Meta atingida!</div>':''}
+          </div>
+          <div style="width:76px;height:76px;position:relative;flex-shrink:0">
+            <svg viewBox="0 0 76 76" style="transform:rotate(-90deg);width:76px;height:76px">
+              <circle cx="38" cy="38" r="${r28}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="7"/>
+              <circle cx="38" cy="38" r="${r28}" fill="none" stroke="${pctMeta>=100?'var(--green)':'var(--gold)'}" stroke-width="7"
+                stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" stroke-linecap="round"
+                style="transition:stroke-dashoffset .8s ease"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <span style="font-family:'Playfair Display',serif;font-size:16px;color:${pctMeta>=100?'var(--green)':'var(--gold)'};font-weight:700">${pctMeta}%</span>
+            </div>
+          </div>`;
         cards.appendChild(cFull);
       }
+
       wrap.appendChild(cards);
 
       // ── Próximos agendamentos (não atendidos, mais próximos a partir de agora) ──
@@ -5946,14 +6007,22 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
 
       const filtro = state._agendaFiltro || 'hoje';
 
-      // ── Dropdown de período ──
+      // ── Dropdown de período — meses com vagas ──
+      // Coleta meses únicos que têm pelo menos 1 vaga
+      const mesesComVagas = new Set(
+        state.vagas.map(v => v.dataHora ? new Date(v.dataHora).toISOString().slice(0,7) : null).filter(Boolean)
+      );
+
       const filtroOpts = [['hoje','Hoje'],['semana','Esta semana']];
       const agora2 = new Date();
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 12; i++) {
         const d = new Date(agora2.getFullYear(), agora2.getMonth() - i, 1);
         const key = 'mes:' + d.toISOString().slice(0,7);
-        const label = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-        filtroOpts.push([key, label]);
+        const anoMes = d.toISOString().slice(0,7);
+        if (mesesComVagas.has(anoMes)) {
+          const label = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+          filtroOpts.push([key, label]);
+        }
       }
       const filtroAtualLabel = (filtroOpts.find(([k]) => k === filtro) || ['','Hoje'])[1];
 
@@ -6035,16 +6104,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
           </div>
         </div>`;
       frag.appendChild(banner);
-
-      // ── Botões de ação (adicionar vagas) ──
-      const acaoRow = div('');
-      acaoRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
-      const btnVagas = document.createElement('button');
-      btnVagas.style.cssText = 'flex:1;padding:11px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;display:flex;align-items:center;justify-content:center;gap:6px';
-      btnVagas.innerHTML = '⚙ Gerenciar Vagas';
-      btnVagas.onclick = () => abrirModalVagas();
-      acaoRow.appendChild(btnVagas);
-      frag.appendChild(acaoRow);
 
       // ── Lista de agendamentos agrupada por data ──
       if (!agFiltro.length) {
