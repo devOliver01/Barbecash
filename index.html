@@ -9,6 +9,42 @@
     href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap"
     rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" onerror="loadQrFallback()"></script>
+  <!-- Firebase Messaging SDK (compat — necessário para SW) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+  <script>
+    // Registra Service Worker do FCM automaticamente
+    if ('serviceWorker' in navigator) {
+      // Gera o SW inline via Blob para não precisar de arquivo externo
+      const swCode = `
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
+firebase.initializeApp({
+  apiKey:"AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
+  authDomain:"barbercash-f6891.firebaseapp.com",
+  projectId:"barbercash-f6891",
+  storageBucket:"barbercash-f6891.firebasestorage.app",
+  messagingSenderId:"222760224701",
+  appId:"1:222760224701:web:afa93064a97b10c28c34d4"
+});
+const messaging = firebase.messaging();
+messaging.onBackgroundMessage(payload => {
+  const n = payload.notification || {};
+  self.registration.showNotification(n.title || 'BarberCash', {
+    body: n.body || '',
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    data: payload.data || {}
+  });
+});
+`;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl, { scope: '/' })
+        .then(reg => { window._fcmSwReg = reg; })
+        .catch(e => console.warn('SW FCM:', e));
+    }
+  </script>
   <script>
     function loadQrFallback() {
       // Fallback: carrega de CDN alternativo
@@ -2226,8 +2262,83 @@
       padding: 2px
     }
 
-    /* ── HOME PAINEL ── */
-    .home-greeting {
+    /* ── FIDELIDADE — CARIMBO ── */
+    .fid-card {
+      background: linear-gradient(135deg, #1a1200, #201800);
+      border: 1px solid var(--gold-dim);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px
+    }
+    .fid-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      color: var(--gold);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+    .fid-stamps {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 10px
+    }
+    .fid-stamp {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--gold-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all .2s;
+      background: var(--surface2)
+    }
+    .fid-stamp.preenchido {
+      background: var(--gold);
+      border-color: var(--gold);
+      font-size: 18px
+    }
+    .fid-stamp.gratis {
+      background: var(--green);
+      border-color: var(--green);
+      animation: popIn .4s cubic-bezier(.175,.885,.32,1.275)
+    }
+    .fid-progress {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px
+    }
+    /* ── PUSH BANNER ── */
+    .push-banner {
+      background: rgba(91, 156, 246, .1);
+      border: 1px solid rgba(91, 156, 246, .3);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+    .push-banner-icon { font-size: 22px; flex-shrink: 0 }
+    .push-banner-text { flex: 1 }
+    .push-banner-title { font-size: 13px; font-weight: 600; color: var(--blue); margin-bottom: 2px }
+    .push-banner-sub { font-size: 11px; color: var(--muted) }
+    .push-banner-btn {
+      background: var(--blue);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 7px 12px;
+      font-family: 'DM Sans', sans-serif;
+      flex-shrink: 0
+    }
       margin-bottom: 18px
     }
 
@@ -3660,6 +3771,8 @@
       lembreteConfig: { ativo: true, horasAntes: 2 },
       retornoConfig: { ativo: false, diasDepois: 15 },
       bloqueios: [],
+      fidelidadeConfig: { ativo: false, meta: 10, recompensa: '1 corte grátis' },
+      pushToken: null,
       _lembreteEnviados: new Set(),
       _retornoEnviados: new Set(),
       tela: 'home', periodo: 'hoje',
@@ -3680,7 +3793,9 @@
           nomeUsuario: state.nomeUsuario, chavePix: state.chavePix,
           chavePixTipo: state.chavePixTipo, plano: state.plano,
           lembreteConfig: state.lembreteConfig, bloqueios: state.bloqueios,
-          retornoConfig: state.retornoConfig
+          retornoConfig: state.retornoConfig,
+          fidelidadeConfig: state.fidelidadeConfig,
+          pushToken: state.pushToken
         });
       } catch (e) { console.error('salvarLocalUsuario:', e); }
     }
@@ -3700,6 +3815,8 @@
         if (cfg.lembreteConfig) state.lembreteConfig = cfg.lembreteConfig;
         if (cfg.bloqueios) state.bloqueios = cfg.bloqueios;
         if (cfg.retornoConfig) state.retornoConfig = cfg.retornoConfig;
+        if (cfg.fidelidadeConfig) state.fidelidadeConfig = cfg.fidelidadeConfig;
+        if (cfg.pushToken) state.pushToken = cfg.pushToken;
       }
       const regs = LS.get(_lkRegs(uid), []);
       if (regs.length > 0) state.registros = regs;
@@ -4269,6 +4386,9 @@
         renderApp();
         if (state.notifAtiva) setTimeout(() => mostrarNotifAdmin(state.notifAtiva), 1000);
         verificarPopupRenovacao();
+        // Carrega dados de fidelidade e inicia push
+        carregarFidelidade();
+        setTimeout(() => iniciarFCM(), 2000);
       } else {
         // Proteção: se havia usuário logado, aguarda 300ms antes de deslogar
         if (_uidAtual) {
@@ -4323,6 +4443,19 @@
       const nome = state.nomeUsuario || 'Barbeiro';
       const greet = div('home-greeting');
       greet.innerHTML = `<div class="greeting-line">${saudacao}, ${nome} 👋</div>`;
+
+      // Banner push — mostra se ainda não ativou
+      if ('Notification' in window && Notification.permission === 'default' && !state.pushToken) {
+        const pushBanner = div('push-banner');
+        pushBanner.innerHTML = `
+          <div class="push-banner-icon">🔔</div>
+          <div class="push-banner-text">
+            <div class="push-banner-title">Ativar notificações push</div>
+            <div class="push-banner-sub">Receba alertas de novos agendamentos automático</div>
+          </div>
+          <button class="push-banner-btn" onclick="ativarPush()">Ativar</button>`;
+        greet.appendChild(pushBanner);
+      }
 
       // Linha "Painel do negócio" com botão olho
       const painelRow = div('');
@@ -4892,11 +5025,30 @@
       else if (c.qtdVisitas <= 2) badgeHtml = `<div class="cli-badge badge-cli-novo">novo</div>`;
       const diasText = c.ultimaVisita ? `última: há ${c.diasSemVir}d` : 'sem visitas';
       const intervaloText = c.intervaloMedio > 0 ? `a cada ${c.intervaloMedio}d` : `${c.qtdVisitas} visit${c.qtdVisitas !== 1 ? 'as' : 'a'}`;
+
+      // Mini indicador de fidelidade
+      let fidHtml = '';
+      if (state.fidelidadeConfig && state.fidelidadeConfig.ativo && c.wpp) {
+        const fid = getFidelidade(c.wpp);
+        const meta = state.fidelidadeConfig.meta || 10;
+        const carimbos = fid ? fid.carimbos : 0;
+        const pct = Math.round((carimbos / meta) * 100);
+        fidHtml = `<div style="margin-top:5px;display:flex;align-items:center;gap:5px">
+          <div style="flex:1;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${carimbos>=meta?'var(--green)':'var(--gold)'};border-radius:2px"></div>
+          </div>
+          <span style="font-size:9px;color:${carimbos>=meta?'var(--green)':'var(--muted)'};white-space:nowrap">
+            ${carimbos>=meta ? '🎉 prêmio!' : `${carimbos}/${meta} ⭐`}
+          </span>
+        </div>`;
+      }
+
       card.innerHTML = `
     <div class="cli-avatar" style="background:${bg}">${inicial}${c.sumiu ? '<div class="cli-avatar-alert">!</div>' : ''}</div>
     <div class="cli-info">
       <div class="cli-nome">${c.nome}</div>
       <div class="cli-meta"><span>${diasText}</span><span style="width:3px;height:3px;border-radius:50%;background:#333;display:inline-block"></span><span>${intervaloText}</span></div>
+      ${fidHtml}
     </div>
     <div class="cli-right"><div class="cli-valor">${brl(c.totalGasto)}</div>${badgeHtml}</div>`;
       card.onclick = () => abrirSheetCliente(c);
@@ -4950,6 +5102,11 @@
       <button class="sheet-btn-ag" onclick="irTela('agendamentos',null);fecharSheetCliente()">📅 Agendar horário</button>
       ${c.wpp ? `<button class="sheet-btn-wpp" onclick="chamarClienteWpp('${c.wpp}','${c.nome.replace(/'/g, "\\'")}')">💬</button>` : ''}
     </div>`;
+      // Injeta card de fidelidade se ativo e tem wpp
+      if (state.fidelidadeConfig && state.fidelidadeConfig.ativo && c.wpp) {
+        const fidCard = renderCardFidelidade(c.wpp, c.nome);
+        if (fidCard) content.appendChild(fidCard);
+      }
       overlay.classList.add('show');
     };
 
@@ -5921,7 +6078,21 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
           openModal('modalPix');
         }
       },
-      { icon: '☁', label: 'Sincronizar com a nuvem', sub: 'Envia dados pendentes e baixa histórico da nuvem', fn: () => sincronizarNuvem() },
+      { icon: '⭐', label: 'Fidelidade (Carimbo)', sub: (() => {
+        const cfg = state.fidelidadeConfig;
+        if (!cfg || !cfg.ativo) return 'Desativado · clique para configurar';
+        return `Ativo · a cada ${cfg.meta || 10} cortes ganha ${cfg.recompensa || '1 corte grátis'}`;
+      })(), fn: () => abrirModalFidelidade() },
+      { icon: '🔔', label: 'Notificações Push', sub: (() => {
+        if (!('Notification' in window)) return 'Não suportado neste dispositivo';
+        if (Notification.permission === 'granted' && state.pushToken) return 'Ativo · notificações habilitadas';
+        if (Notification.permission === 'denied') return 'Bloqueado nas configurações do navegador';
+        return 'Desativado · clique para ativar';
+      })(), fn: () => {
+        if (!('Notification' in window)) { showFeedback('Não suportado neste dispositivo.', 'erro'); return; }
+        if (Notification.permission === 'denied') { showFeedback('Notificações bloqueadas. Habilite nas configurações do navegador.', 'erro'); return; }
+        solicitarPermissaoPush();
+      } },
       { icon: '🗑', label: 'Limpar todos os dados', sub: 'Remove todos os registros permanentemente', fn: () => confirmarLimpar(), danger: true },
       ].forEach(item => {
         const row = div('corte-item'); row.style.cursor = 'pointer';
@@ -6389,6 +6560,28 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
         state.agendamentos = snap.docs
           .map(d => { const data = d.data(); return { id: d.id, ...data, dataHora: normTs(data.dataHora), criadoEm: normTs(data.criadoEm) }; })
           .filter(a => !a.uid || a.uid === state.uid);
+        // Agenda push local para novos agendamentos futuros (até 24h)
+        if (Notification.permission === 'granted') {
+          state.agendamentos.forEach(a => {
+            if (!a.atendido && (a.dataHora || 0) > Date.now()) {
+              const tag = 'ag_' + a.id;
+              // Lembrete 1h antes
+              agendarPushLocal(
+                `✂ Agendamento em 1h — ${a.nome || ''}`,
+                `${a.servico || 'Corte'} às ${new Date(a.dataHora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`,
+                (a.dataHora || 0) - 3600000,
+                tag + '_1h'
+              );
+              // Lembrete 15min antes
+              agendarPushLocal(
+                `⏰ Agendamento em 15min — ${a.nome || ''}`,
+                `${a.servico || 'Corte'} às ${new Date(a.dataHora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`,
+                (a.dataHora || 0) - 900000,
+                tag + '_15m'
+              );
+            }
+          });
+        }
         // Atualiza home E agenda em tempo real
         if (state.tela === 'home' || state.tela === 'agendamentos') render();
         atualizarBadgeClientes();
@@ -6858,6 +7051,24 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       showFeedback('Atendimento registrado! ✂', 'ok');
       render();
       await saveRegistro(novoReg);
+
+      // Incrementa carimbo de fidelidade (usando whatsapp do agendamento)
+      if (state.fidelidadeConfig && state.fidelidadeConfig.ativo && _mraAgendaId) {
+        const ag = state.agendamentos.find(a => a.id === _mraAgendaId);
+        if (ag && ag.whatsapp) {
+          const resultado = await incrementarCarimbo(ag.whatsapp, ag.nome);
+          setTimeout(() => mostrarToastFidelidade(resultado), 600);
+          // Agenda push de lembrete para o próximo corte
+          const cfg = state.fidelidadeConfig;
+          if (resultado && !resultado.ganhouGratis) {
+            const faltam = (cfg.meta || 10) - (resultado.carimbos || 0);
+            if (faltam === 1) {
+              pushLocal('⭐ Quase lá!', `${ag.nome || 'Cliente'} falta 1 corte para ganhar ${cfg.recompensa || '1 corte grátis'}!`, 'fid_' + ag.whatsapp);
+            }
+          }
+        }
+      }
+
       btn.disabled = false; btn.textContent = '✂ Registrar';
     };
 
@@ -7608,6 +7819,260 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
 
     // Carrega lembretes ao iniciar
     setTimeout(carregarLembreteEnviados, 500);
+
+    // ══════════════════════════════════════════════════════════════════
+    // ── PUSH NOTIFICATIONS (FCM) ──────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    // VAPID key pública do projeto Firebase (gere em Project Settings > Cloud Messaging)
+    // Substitua pela sua VAPID key real após gerar no console Firebase
+    const FCM_VAPID_KEY = 'SUBSTITUA_PELA_SUA_VAPID_KEY_PUBLICA';
+
+    let _fcmMessaging = null;
+
+    async function iniciarFCM() {
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'denied') return;
+      try {
+        // Instância compat (usada junto com o SW)
+        if (!firebase.apps.find(a => a.name === '[DEFAULT]')) {
+          firebase.initializeApp({
+            apiKey:"AIzaSyDsx8SKvD4DzyLZdvC3me5iBx0s6_qhJc8",
+            authDomain:"barbercash-f6891.firebaseapp.com",
+            projectId:"barbercash-f6891",
+            storageBucket:"barbercash-f6891.firebasestorage.app",
+            messagingSenderId:"222760224701",
+            appId:"1:222760224701:web:afa93064a97b10c28c34d4"
+          });
+        }
+        _fcmMessaging = firebase.messaging();
+
+        // Escuta mensagens em foreground
+        _fcmMessaging.onMessage(payload => {
+          const n = payload.notification || {};
+          showFeedback(`🔔 ${n.title || 'Notificação'}: ${n.body || ''}`, 'ok');
+        });
+
+        // Se já tem token salvo, valida; caso contrário obtém novo
+        if (state.pushToken) return;
+        await solicitarPermissaoPush();
+      } catch (e) {
+        console.warn('FCM init:', e.message || e);
+      }
+    }
+
+    async function solicitarPermissaoPush() {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          showFeedback('Notificações bloqueadas nas configurações do navegador.', 'erro');
+          return;
+        }
+        const swReg = window._fcmSwReg || await navigator.serviceWorker.ready;
+        const token = await _fcmMessaging.getToken({
+          vapidKey: FCM_VAPID_KEY,
+          serviceWorkerRegistration: swReg
+        });
+        if (token) {
+          state.pushToken = token;
+          // Salva token no Firestore para uso no backend
+          try {
+            await setDoc(doc(db, 'users', state.uid, 'config', 'push'), {
+              token, updatedAt: Date.now(), plataforma: 'web'
+            }, { merge: true });
+          } catch (e) { console.warn('Salvar token:', e); }
+          saveConfig();
+          showFeedback('🔔 Notificações push ativadas!', 'ok');
+        }
+      } catch (e) {
+        console.warn('FCM token:', e.message || e);
+      }
+    }
+
+    window.ativarPush = solicitarPermissaoPush;
+
+    // Dispara push local (foreground) — útil para lembretes imediatos
+    function pushLocal(titulo, corpo, tag) {
+      if (Notification.permission !== 'granted') return;
+      try {
+        new Notification(titulo, { body: corpo, icon: '/favicon.ico', tag: tag || 'barbercash' });
+      } catch (e) { /* Safari pode bloquear */ }
+    }
+    window.pushLocal = pushLocal;
+
+    // Agenda push local para um timestamp futuro (substituição leve de FCM para testes locais)
+    function agendarPushLocal(titulo, corpo, tsMs, tag) {
+      const delay = tsMs - Date.now();
+      if (delay <= 0 || delay > 24 * 3600 * 1000) return; // só até 24h
+      setTimeout(() => pushLocal(titulo, corpo, tag), delay);
+    }
+    window.agendarPushLocal = agendarPushLocal;
+
+    // Inicia FCM após login
+    setTimeout(() => { if (state.uid) iniciarFCM(); }, 1500);
+
+    // ══════════════════════════════════════════════════════════════════
+    // ── FIDELIDADE — CARIMBO DIGITAL ─────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+
+    // Retorna o doc de fidelidade de um cliente pelo wpp (chave)
+    function _fidKey(wpp) {
+      return (wpp || '').replace(/\D/g, '') || null;
+    }
+
+    // Carrega fidelidade de todos os clientes do Firestore (subcoleção users/{uid}/fidelidade)
+    async function carregarFidelidade() {
+      if (!state.uid) return;
+      try {
+        const snap = await getDocs(collection(db, 'users', state.uid, 'fidelidade'));
+        state._fidelidade = {};
+        snap.docs.forEach(d => { state._fidelidade[d.id] = d.data(); });
+      } catch (e) { console.warn('fidelidade:', e); }
+    }
+    if (typeof state._fidelidade === 'undefined') state._fidelidade = {};
+
+    // Retorna dados de fidelidade de um cliente
+    function getFidelidade(wpp) {
+      const k = _fidKey(wpp);
+      if (!k) return null;
+      return state._fidelidade[k] || { carimbos: 0, totalResgatado: 0, ultimoCarimbo: null };
+    }
+
+    // Incrementa carimbo ao registrar atendimento (chamado internamente)
+    async function incrementarCarimbo(wpp, nomeCliente) {
+      const cfg = state.fidelidadeConfig;
+      if (!cfg || !cfg.ativo) return null;
+      const k = _fidKey(wpp);
+      if (!k) return null;
+
+      const atual = getFidelidade(wpp);
+      const novoCarimbo = (atual.carimbos || 0) + 1;
+      const meta = cfg.meta || 10;
+      const ganhouGratis = novoCarimbo >= meta;
+      const carimbosAtualizados = ganhouGratis ? 0 : novoCarimbo;
+
+      const dados = {
+        carimbos: carimbosAtualizados,
+        totalResgatado: (atual.totalResgatado || 0) + (ganhouGratis ? 1 : 0),
+        ultimoCarimbo: Date.now(),
+        nome: nomeCliente || '',
+        wpp: k,
+      };
+
+      state._fidelidade[k] = dados;
+
+      try {
+        await setDoc(doc(db, 'users', state.uid, 'fidelidade', k), dados, { merge: true });
+      } catch (e) { console.warn('fidelidade save:', e); }
+
+      return { ganhouGratis, carimbos: carimbosAtualizados, meta, nome: nomeCliente };
+    }
+
+    // Mostra toast de fidelidade após registrar
+    function mostrarToastFidelidade(resultado) {
+      if (!resultado) return;
+      if (resultado.ganhouGratis) {
+        showFeedback(`🎉 ${resultado.nome || 'Cliente'} ganhou ${state.fidelidadeConfig.recompensa || '1 corte grátis'}!`, 'ok');
+        pushLocal('🎉 Fidelidade atingida!', `${resultado.nome || 'Cliente'} completou ${resultado.meta} cortes e ganhou ${state.fidelidadeConfig.recompensa || '1 corte grátis'}!`, 'fidelidade');
+      } else {
+        const faltam = (resultado.meta || 10) - (resultado.carimbos || 0);
+        showFeedback(`⭐ Carimbo adicionado! Faltam ${faltam} para ganhar ${state.fidelidadeConfig.recompensa || '1 corte grátis'}.`, 'ok');
+      }
+    }
+
+    // Renderiza o card de fidelidade de um cliente
+    function renderCardFidelidade(wpp, nome) {
+      const cfg = state.fidelidadeConfig;
+      if (!cfg || !cfg.ativo) return null;
+      const fid = getFidelidade(wpp);
+      const meta = cfg.meta || 10;
+      const carimbos = fid ? fid.carimbos : 0;
+      const totalResgatado = fid ? (fid.totalResgatado || 0) : 0;
+      const card = div('fid-card');
+      let stamps = '';
+      for (let i = 0; i < meta; i++) {
+        stamps += `<div class="fid-stamp${i < carimbos ? ' preenchido' : ''}">
+          ${i < carimbos ? '✂' : '○'}
+        </div>`;
+      }
+      card.innerHTML = `
+        <div class="fid-title">
+          <span>⭐ Fidelidade</span>
+          <span style="font-size:11px;color:var(--muted)">${totalResgatado} resgate${totalResgatado !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="fid-stamps">${stamps}</div>
+        <div class="fid-progress">
+          ${carimbos >= meta
+            ? `<span style="color:var(--green);font-weight:600">🎉 ${cfg.recompensa || '1 corte grátis'} disponível!</span>`
+            : `${carimbos} de ${meta} cortes · faltam ${meta - carimbos} para <strong style="color:var(--gold)">${cfg.recompensa || '1 corte grátis'}</strong>`
+          }
+        </div>`;
+      return card;
+    }
+    window.renderCardFidelidade = renderCardFidelidade;
+
+    // Modal de config de fidelidade
+    window.abrirModalFidelidade = function() {
+      const cfg = state.fidelidadeConfig || { ativo: false, meta: 10, recompensa: '1 corte grátis' };
+      let overlay = document.getElementById('modal-fid-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'modal-fid-overlay';
+        overlay.className = 'overlay';
+        overlay.onclick = e => { if (e.target === overlay) overlay.classList.remove('show'); };
+        overlay.innerHTML = `
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">⭐ Fidelidade</div>
+              <button class="modal-close" onclick="document.getElementById('modal-fid-overlay').classList.remove('show')">✕</button>
+            </div>
+            <div class="modal-body">
+              <div style="margin-bottom:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                  <span style="font-size:14px">Ativar carimbo digital</span>
+                  <div class="toggle-box${cfg.ativo ? ' on' : ''}" id="fid-toggle" onclick="toggleFidelidade()" style="cursor:pointer;flex-shrink:0"><div class="toggle-knob"></div></div>
+                </div>
+                <div class="field"><label>Cortes para ganhar recompensa</label>
+                  <input class="input" id="fid-meta" type="number" min="3" max="20" value="${cfg.meta || 10}" style="font-size:16px;padding:10px 12px" />
+                </div>
+                <div class="field"><label>Recompensa</label>
+                  <input class="input" id="fid-recompensa" value="${cfg.recompensa || '1 corte grátis'}" placeholder="Ex: 1 corte grátis" style="font-size:14px;padding:10px 12px" />
+                </div>
+                <div style="font-size:12px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:10px 12px;line-height:1.6">
+                  💡 O carimbo é adicionado automaticamente ao registrar um atendimento com WhatsApp do cliente. Ao atingir a meta, o sistema avisa na tela e envia push notification.
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-primary" onclick="salvarFidelidadeConfig()">Salvar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+      } else {
+        // Atualiza valores
+        const m = document.getElementById('fid-meta'); if (m) m.value = cfg.meta || 10;
+        const r = document.getElementById('fid-recompensa'); if (r) r.value = cfg.recompensa || '1 corte grátis';
+        const t = document.getElementById('fid-toggle'); if (t) t.className = 'toggle-box' + (cfg.ativo ? ' on' : '');
+      }
+      overlay.classList.add('show');
+    };
+
+    window.toggleFidelidade = function() {
+      const tog = document.getElementById('fid-toggle');
+      if (!tog) return;
+      const novoVal = !tog.classList.contains('on');
+      tog.className = 'toggle-box' + (novoVal ? ' on' : '');
+    };
+
+    window.salvarFidelidadeConfig = async function() {
+      const ativo = document.getElementById('fid-toggle').classList.contains('on');
+      const meta = parseInt(document.getElementById('fid-meta').value) || 10;
+      const recompensa = document.getElementById('fid-recompensa').value.trim() || '1 corte grátis';
+      state.fidelidadeConfig = { ativo, meta: Math.min(20, Math.max(3, meta)), recompensa };
+      await saveConfig();
+      document.getElementById('modal-fid-overlay').classList.remove('show');
+      showFeedback(ativo ? '⭐ Fidelidade ativada!' : 'Fidelidade desativada.', 'ok');
+      render();
+    };
   </script>
 </body>
 
