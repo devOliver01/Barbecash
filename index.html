@@ -3869,7 +3869,6 @@
       <nav class="nav">
         <button class="nav-btn active" id="nav-home" onclick="irTela('home',this)"><span class="nav-icon">🏠</span>Home</button>
         <button class="nav-btn" id="nav-clientes" onclick="irTela('clientes',this)" style="position:relative"><span class="nav-icon">👤</span>Clientes<span id="nav-clientes-badge" style="display:none;position:absolute;top:6px;right:calc(50% - 18px);width:16px;height:16px;background:var(--red);border-radius:50%;font-size:9px;font-weight:700;color:#fff;align-items:center;justify-content:center"></span></button>
-        <button class="nav-btn" id="nav-agendamentos" onclick="irTela('agendamentos',this)"><span class="nav-icon">📅</span>Agenda</button>
         <button class="nav-btn" id="nav-historico" onclick="irTela('historico',this)"><span class="nav-icon">💰</span>Financeiro</button>
         <button class="nav-btn" id="nav-config" onclick="irTela('config',this)"><span class="nav-icon">⚙️</span>Config</button>
       </nav>
@@ -4127,7 +4126,7 @@
       const proxHeader = div('home-section-header');
       const btnVerAgenda = document.createElement('button');
       btnVerAgenda.className = 'home-section-link'; btnVerAgenda.textContent = 'Ver agenda →';
-      btnVerAgenda.onclick = () => irTela('agendamentos', document.getElementById('nav-agendamentos'));
+      btnVerAgenda.onclick = () => irTela('agendamentos', null);
       proxHeader.innerHTML = `<div class="home-section-title">📅 Próximos (${agExibir.length})</div>`;
       proxHeader.appendChild(btnVerAgenda);
       wrap.appendChild(proxHeader);
@@ -4159,7 +4158,7 @@
         <div class="prox-divider"></div>
         <div class="prox-info"><div class="prox-nome">${ag.nome || '—'}</div><div class="prox-servico">✂ ${ag.servico || '—'}</div></div>
         ${badgeHtml}`;
-          item.onclick = () => irTela('agendamentos', document.getElementById('nav-agendamentos'));
+          item.onclick = () => irTela('agendamentos', null);
           wrap.appendChild(item);
         });
 
@@ -4239,7 +4238,7 @@
             ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">hoje: ${taxaHoje}% taxa</div>` : '<div style="font-size:11px;color:var(--muted);margin-top:4px">—</div>'}
           </div>
         </div>
-        <button onclick="irTela('agendamentos',document.getElementById('nav-agendamentos'))" style="width:100%;margin-top:12px;padding:10px;background:rgba(201,168,76,.08);border:1px solid var(--gold-dim);border-radius:10px;color:var(--gold);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.5px">📅 Abrir agenda completa →</button>`;
+        <button onclick="irTela('agendamentos',null)" style="width:100%;margin-top:12px;padding:10px;background:rgba(201,168,76,.08);border:1px solid var(--gold-dim);border-radius:10px;color:var(--gold);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.5px">📅 Abrir agenda completa →</button>`;
 
       wrap.appendChild(painelCard);
 
@@ -4443,7 +4442,7 @@
       ${histHtml ? `<div class="sheet-section-title">🕐 Histórico</div>${histHtml}` : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px 0">Sem histórico de visitas</div>'}
     </div>
     <div class="sheet-btns">
-      <button class="sheet-btn-ag" onclick="irTela('agendamentos',document.getElementById('nav-agendamentos'));fecharSheetCliente()">📅 Agendar horário</button>
+      <button class="sheet-btn-ag" onclick="irTela('agendamentos',null);fecharSheetCliente()">📅 Agendar horário</button>
       ${c.wpp ? `<button class="sheet-btn-wpp" onclick="chamarClienteWpp('${c.wpp}','${c.nome.replace(/'/g, "\\'")}')">💬</button>` : ''}
     </div>`;
       overlay.classList.add('show');
@@ -5939,31 +5938,56 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       const hojeDate = new Date(); hojeDate.setHours(0,0,0,0);
       const hojeStr = today();
 
+      // ── Cabeçalho com botão voltar ──
+      const headerRow = div('');
+      headerRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px';
+      headerRow.innerHTML = `<button onclick="irTela('home',document.getElementById('nav-home'))" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;padding:0">← Voltar</button><span style="font-family:'Playfair Display',serif;font-size:16px;color:var(--gold)">Agenda</span><div style="width:56px"></div>`;
+      frag.appendChild(headerRow);
+
       const filtro = state._agendaFiltro || 'hoje';
 
-      // ── Banner de filtros ──
-      const filtroWrap = div('');
-      filtroWrap.style.cssText = 'display:flex;gap:6px;overflow-x:auto;padding:0 0 10px;margin-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none';
-
+      // ── Dropdown de período ──
       const filtroOpts = [['hoje','Hoje'],['semana','Esta semana']];
-      // Adiciona meses (mês atual + 5 anteriores)
       const agora2 = new Date();
       for (let i = 0; i < 6; i++) {
         const d = new Date(agora2.getFullYear(), agora2.getMonth() - i, 1);
         const key = 'mes:' + d.toISOString().slice(0,7);
-        const label = d.toLocaleDateString('pt-BR',{month:'short',year:'numeric'}).replace(' de ',' ');
-        filtroOpts.push([key, '📆 ' + label]);
+        const label = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+        filtroOpts.push([key, label]);
       }
+      const filtroAtualLabel = (filtroOpts.find(([k]) => k === filtro) || ['','Hoje'])[1];
 
+      const dropRow = div('');
+      dropRow.style.cssText = 'position:relative;margin-bottom:12px';
+      const dropBtn = document.createElement('button');
+      dropBtn.id = 'agenda-periodo-btn';
+      dropBtn.style.cssText = 'width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-family:"DM Sans",sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px';
+      dropBtn.innerHTML = `<span style="display:flex;align-items:center;gap:8px"><span style="color:var(--gold)">📅</span><span>${filtroAtualLabel}</span></span><span style="color:var(--muted);font-size:12px">▾</span>`;
+      const dropMenu = div('');
+      dropMenu.id = 'agenda-periodo-menu';
+      dropMenu.style.cssText = 'display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:12px;z-index:100;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.6);max-height:280px;overflow-y:auto';
       filtroOpts.forEach(([k, l]) => {
-        const btn = document.createElement('button');
+        const item = div('');
         const ativo = filtro === k;
-        btn.style.cssText = `padding:7px 14px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid ${ativo ? 'var(--gold)' : 'var(--border)'};background:${ativo ? 'var(--gold)' : 'var(--surface2)'};color:${ativo ? '#000' : 'var(--muted)'};font-family:'DM Sans',sans-serif;white-space:nowrap;font-weight:${ativo ? '600' : '400'};flex-shrink:0;transition:all .15s`;
-        btn.textContent = l;
-        btn.onclick = () => { state._agendaFiltro = k; render(); };
-        filtroWrap.appendChild(btn);
+        item.style.cssText = `padding:12px 16px;cursor:pointer;font-size:14px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:${ativo ? 'var(--gold-bg)' : 'transparent'};color:${ativo ? 'var(--gold)' : 'var(--text)'}`;
+        item.innerHTML = `<span>${l}</span>${ativo ? '<span style="color:var(--gold)">✓</span>' : ''}`;
+        item.onmousedown = (e) => { e.preventDefault(); state._agendaFiltro = k; dropMenu.style.display = 'none'; render(); };
+        dropMenu.appendChild(item);
       });
-      frag.appendChild(filtroWrap);
+      dropBtn.onclick = (e) => {
+        e.stopPropagation();
+        const isOpen = dropMenu.style.display !== 'none';
+        dropMenu.style.display = isOpen ? 'none' : 'block';
+        if (!isOpen) {
+          setTimeout(() => document.addEventListener('click', function h() {
+            dropMenu.style.display = 'none';
+            document.removeEventListener('click', h);
+          }), 10);
+        }
+      };
+      dropRow.appendChild(dropBtn);
+      dropRow.appendChild(dropMenu);
+      frag.appendChild(dropRow);
 
       // ── Calcular agendamentos do filtro ──
       const agFiltro = _agFiltrarPorPeriodo(filtro).sort((a,b)=>(a.dataHora||0)-(b.dataHora||0));
