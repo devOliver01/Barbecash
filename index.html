@@ -3434,48 +3434,29 @@
       setSyncing(false);
     }
 
-    function saveConfig() {
+    async function saveConfig() {
       // Salva apenas localmente — nuvem só ao clicar em Sincronizar
       if (!state.uid) return;
       salvarLocalUsuario(state.uid);
       // Marca config como pendente de sync
       try { localStorage.setItem('bc_cfg_pendente_' + state.uid, '1'); } catch (e) { }
       // Atualiza booking em tempo real (cortes) sem exigir sync manual
-      _pushCortesBooking();
+      await _pushCortesBooking();
     }
 
-    // Envia cortes para o booking em tempo real (separado do sync de registros)
+    // Escreve serviços em barbeiros/{uid} — mesma lógica das vagas
+    // Booking ouve onSnapshot nesse doc e atualiza em tempo real
     async function _pushCortesBooking() {
       if (!state.uid) return;
-
-      const payload = {
-        cortesLista: state.cortesLista,
-        nomeUsuario: state.nomeUsuario,
-        chavePix: state.chavePix,
-        chavePixTipo: state.chavePixTipo,
-        atualizadoEm: Date.now()
-      };
-
-      // 1. Config completa do usuario autenticado
       try {
-        await setDoc(doc(db, 'users', state.uid, 'config', 'main'), {
-          cortesLista: state.cortesLista, barbeiros: state.barbeiros,
-          barbeiroAtual: state.barbeiroAtual, metas: state.metas,
-          nomeUsuario: state.nomeUsuario, chavePix: state.chavePix,
-          chavePixTipo: state.chavePixTipo, plano: state.plano
+        await setDoc(doc(db, 'barbeiros', state.uid), {
+          cortesLista: state.cortesLista,
+          nomeUsuario: state.nomeUsuario,
+          chavePix: state.chavePix,
+          chavePixTipo: state.chavePixTipo,
+          atualizadoEm: Date.now()
         });
-      } catch (e) { console.warn('pushCortesBooking config:', e.message || e); }
-
-      // 2. Coleção raiz publica "barbeiros/{uid}" — mesma estrategia das vagas
-      // Leitura publica sem autenticacao, escrita so pelo dono autenticado
-      try {
-        await setDoc(doc(db, 'barbeiros', state.uid), payload);
-      } catch (e) { console.warn('pushCortesBooking barbeiros:', e.message || e); }
-
-      // 3. admin/config — fallback para booking sem ?uid= na URL
-      try {
-        await setDoc(doc(db, 'admin', 'config'), { cortesPublicos: state.cortesLista }, { merge: true });
-      } catch (e) { console.warn('pushCortesBooking admin:', e.message || e); }
+      } catch (e) { console.warn('_pushCortesBooking:', e.message || e); }
     }
 
     // ── ADMIN CONFIG ──────────────────────────────────────────────────────────────
@@ -3974,10 +3955,17 @@
         if (!state.corteNome) state.pagamento = getPagConfig().padrao;
         iniciarListenerAgendamentos();
         iniciarListenerVagas();
+        _pushCortesBooking(); // garante barbeiros/{uid} atualizado para o booking
         renderApp();
         if (state.notifAtiva) setTimeout(() => mostrarNotifAdmin(state.notifAtiva), 1000);
         verificarPopupRenovacao();
       } else {
+        // Proteção: se havia usuário logado, aguarda 300ms antes de deslogar
+        if (_uidAtual) {
+          await new Promise(r => setTimeout(r, 300));
+          const _cu = auth.currentUser;
+          if (_cu && !_cu.isAnonymous) return;
+        }
         resetState();
         _uidAtual = null;
         renderLogin();

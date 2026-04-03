@@ -144,7 +144,7 @@ textarea.inp{resize:none;height:80px;font-size:14px}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, getDocs, addDoc, setDoc, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
@@ -156,9 +156,11 @@ const FB = {
   messagingSenderId:"222760224701",
   appId:"1:222760224701:web:afa93064a97b10c28c34d4"
 };
-const app = initializeApp(FB);
-const db  = getFirestore(app);
-const auth = getAuth(app);
+// Instância separada "booking" — não conflita com a sessão auth do index.html
+const _existingBooking = getApps().find(a => a.name === 'booking');
+const bookingApp = _existingBooking || initializeApp(FB, 'booking');
+const db  = getFirestore(bookingApp);
+const auth = getAuth(bookingApp);
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const S = {
@@ -208,68 +210,32 @@ async function init() {
     atualizarHero('', S.cfg);
   } catch(e){ console.warn('admin cfg:', e); }
 
-  // ── 2. Listener de SERVIÇOS em tempo real ────────────────────────────────────
-  // Fonte 1 (prioridade): booking/{uid} — escrito pelo index.html ao salvar serviços
-  // Fonte 2 (fallback): users/{uid}/config/main
-  // Fonte 3 (fallback sem uid): admin/config.cortesPublicos
-
-  // ── 2. Listener de SERVIÇOS — mesma estratégia das vagas ────────────────────
-  // Fonte primária: barbeiros/{uid} — coleção raiz pública, sem autenticação
-  // Escrita pelo index.html a cada alteração em Gerenciar Serviços
-
+  // ── 2. SERVIÇOS em tempo real ────────────────────────────────────────────────
   function aplicarServicos(lista, nomeUsuario){
     if(!lista || !lista.length) return false;
     S.servicos = lista;
     if(nomeUsuario) atualizarHero(nomeUsuario, S.cfg);
-    if(S.sel.servico && !lista.find(s => s.nome === S.sel.servico.nome)){
-      S.sel.servico = null;
-    }
+    if(S.sel.servico && !lista.find(s => s.nome === S.sel.servico.nome)) S.sel.servico = null;
     if(S.step === 1) render();
     return true;
   }
 
   if(S.uidBarbeiro){
-    // Listener principal: barbeiros/{uid} — atualiza igual às vagas, sem bloqueio de auth
+    // Mesmo padrão das vagas: onSnapshot em tempo real
+    // Index escreve em barbeiros/{uid} sempre que salva serviços
     onSnapshot(doc(db,'barbeiros', S.uidBarbeiro), snap => {
       if(!snap.exists()) return;
       const d = snap.data();
       aplicarServicos(d.cortesLista, d.nomeUsuario);
       if(d.whatsapp) S.cfg.whatsapp = d.whatsapp;
     });
-
-    // Carga inicial rápida antes do listener responder
-    try {
-      const snap = await getDoc(doc(db,'barbeiros', S.uidBarbeiro));
-      if(snap.exists()) aplicarServicos(snap.data().cortesLista, snap.data().nomeUsuario);
-    } catch(e){ console.warn('carga barbeiros:', e); }
-
-    // Fallback: users/{uid}/config/main se barbeiros ainda sem dados
-    if(!S.servicos.length){
-      try {
-        const cfgSnap = await getDoc(doc(db,'users', S.uidBarbeiro, 'config', 'main'));
-        if(cfgSnap.exists()){
-          const d = cfgSnap.data();
-          aplicarServicos(d.cortesLista, d.nomeUsuario);
-          if(d.whatsapp) S.cfg.whatsapp = d.whatsapp;
-        }
-      } catch(e){ console.warn('fallback config:', e); }
-    }
-
   } else {
-    // Sem uid: admin/config como fallback
     onSnapshot(doc(db,'admin','config'), snap => {
       if(!snap.exists()) return;
       aplicarServicos(snap.data().cortesPublicos, '');
     });
   }
 
-  // Padrão se nenhuma fonte trouxer dados em 3s
-  setTimeout(()=>{
-    if(!S.servicos.length){
-      S.servicos = [{nome:'Corte Simples',preco:35},{nome:'Degradê',preco:45},{nome:'Barba',preco:30},{nome:'Corte + Barba',preco:70}];
-      if(S.step===1) render();
-    }
-  }, 3000);
 
   // ── 3. Listener de VAGAS em tempo real ──────────────────────────────────────
   // Normaliza dataHora: aceita Timestamp Firestore ou número
