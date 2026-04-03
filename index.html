@@ -320,28 +320,28 @@
     }
 
     .logo-icon {
-      width: 34px;
-      height: 34px;
+      width: 28px;
+      height: 28px;
       background: var(--gold);
-      border-radius: 10px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 17px;
+      font-size: 14px;
       flex-shrink: 0
     }
 
     .logo-title {
       font-family: 'Playfair Display', serif;
-      font-size: 19px;
+      font-size: 16px;
       color: var(--gold);
       letter-spacing: .5px
     }
 
     .logo-sub {
-      font-size: 9px;
+      font-size: 8px;
       color: var(--muted);
-      letter-spacing: 2px;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
       margin-top: -1px
     }
@@ -2246,17 +2246,19 @@
     .fin-cards {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 14px
+      gap: 8px;
+      margin-bottom: 12px
     }
 
     .fin-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      padding: 14px;
+      padding: 12px;
       cursor: pointer;
-      transition: border-color .2s
+      transition: border-color .2s;
+      min-width: 0;
+      overflow: hidden
     }
 
     .fin-card:hover {
@@ -2264,18 +2266,24 @@
     }
 
     .fin-card-label {
-      font-size: 10px;
+      font-size: 9px;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 6px
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
     }
 
     .fin-card-val {
       font-family: 'Playfair Display', serif;
-      font-size: 22px;
+      font-size: 18px;
       color: var(--gold);
-      line-height: 1
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
     }
 
     .fin-card-sub {
@@ -2284,7 +2292,10 @@
       margin-top: 4px;
       display: flex;
       align-items: center;
-      gap: 4px
+      gap: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
     }
 
     .fin-card-sub .up {
@@ -3133,10 +3144,13 @@
         <button class="modal-close" onclick="closeModal('modalLembretes')">✕</button>
       </div>
       <div class="modal-body">
+
+        <!-- SEÇÃO 1: LEMBRETE DE AGENDAMENTO -->
+        <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">✂️ Lembrete de agendamento</div>
         <div class="lembrete-cfg-row">
           <div>
             <div class="lembrete-cfg-label">Ativar lembretes automáticos</div>
-            <div class="lembrete-cfg-sub">Notifica você sobre agendamentos próximos</div>
+            <div class="lembrete-cfg-sub">Abre WhatsApp automaticamente no horário configurado</div>
           </div>
           <label class="toggle-wrap">
             <input type="checkbox" id="lembrete-ativo-toggle" onchange="salvarConfigLembrete()">
@@ -3145,23 +3159,93 @@
         </div>
         <div class="lembrete-cfg-row">
           <div>
-            <div class="lembrete-cfg-label">Avisar com quanto tempo de antecedência</div>
+            <div class="lembrete-cfg-label">Enviar com quanto tempo de antecedência</div>
             <div class="lembrete-cfg-sub" id="lembrete-horas-label">2 horas antes</div>
           </div>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:4px">
+        <div style="display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap">
           <button class="pag-tab" id="lbtn-1" onclick="setLembreteHoras(1)">1h</button>
           <button class="pag-tab" id="lbtn-2" onclick="setLembreteHoras(2)">2h</button>
           <button class="pag-tab" id="lbtn-3" onclick="setLembreteHoras(3)">3h</button>
           <button class="pag-tab" id="lbtn-6" onclick="setLembreteHoras(6)">6h</button>
           <button class="pag-tab" id="lbtn-24" onclick="setLembreteHoras(24)">1 dia</button>
         </div>
-        <div style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.6">
-          💡 Quando um agendamento estiver chegando, aparecerá um card na home com botão para enviar mensagem de lembrete ao cliente pelo WhatsApp.
+        <div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.6">
+          💡 Quando chegar o horário configurado, o WhatsApp abrirá automaticamente com a mensagem de lembrete pronta para o cliente.
         </div>
+
+        <!-- SEÇÃO 2: MENSAGEM DE RETORNO -->
+        <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-top:20px;margin-bottom:10px">🔄 Chamar cliente de volta</div>
+        <div class="lembrete-cfg-row">
+          <div>
+            <div class="lembrete-cfg-label">Ativar mensagem de retorno</div>
+            <div class="lembrete-cfg-sub">Envia convite automático após o atendimento</div>
+          </div>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="retorno-ativo-toggle" onchange="salvarConfigRetorno()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="lembrete-cfg-row">
+          <div>
+            <div class="lembrete-cfg-label">Enviar convite após quantos dias</div>
+            <div class="lembrete-cfg-sub" id="retorno-dias-label">15 dias após atendimento</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:4px">
+          <button class="pag-tab" id="rbtn-10" onclick="setRetornoDias(10)">10 dias</button>
+          <button class="pag-tab" id="rbtn-15" onclick="setRetornoDias(15)">15 dias</button>
+          <button class="pag-tab" id="rbtn-30" onclick="setRetornoDias(30)">30 dias</button>
+        </div>
+        <div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.6">
+          💡 Após o prazo configurado, o WhatsApp abrirá automaticamente com uma mensagem convidando o cliente a agendar novamente.
+        </div>
+
+        <!-- SEÇÃO 3: DISPARO EM MASSA -->
+        <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-top:20px;margin-bottom:10px">📢 Mensagem para todos os clientes</div>
+
+        <div style="margin-bottom:10px">
+          <div class="lembrete-cfg-label" style="margin-bottom:6px">Mensagem personalizada</div>
+          <textarea id="massa-texto" rows="3" placeholder="Ex: Olá! Promoção especial essa semana na barbearia. Agende já! 💈" style="width:100%;background:#0a0a0a;border:1px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:none;line-height:1.5"></textarea>
+        </div>
+
+        <div style="margin-bottom:10px">
+          <div class="lembrete-cfg-label" style="margin-bottom:6px">Quais clientes?</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="pag-tab active" id="massa-filtro-todos" onclick="setMassaFiltro('todos')">Todos</button>
+            <button class="pag-tab" id="massa-filtro-agendados" onclick="setMassaFiltro('agendados')">Com agendamento</button>
+            <button class="pag-tab" id="massa-filtro-atendidos" onclick="setMassaFiltro('atendidos')">Já atendidos</button>
+          </div>
+        </div>
+
+        <div id="massa-contagem" style="font-size:12px;color:var(--muted);margin-bottom:10px">Calculando...</div>
+
+        <div style="display:flex;gap:8px;flex-direction:column">
+          <button onclick="dispararMassaUmAUm()" style="width:100%;padding:12px;background:var(--green);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px">
+            📲 Disparar um a um (abre WhatsApp)
+          </button>
+          <button onclick="copiarParaTransmissao()" style="width:100%;padding:12px;background:var(--surface3);color:var(--text);border:1px solid var(--border2);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px">
+            📋 Copiar mensagem p/ Lista de Transmissão
+          </button>
+        </div>
+
+        <div id="massa-progresso" style="display:none;margin-top:10px;padding:12px;background:var(--surface2);border-radius:10px">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px" id="massa-prog-titulo">Enviando...</div>
+          <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+            <div id="massa-prog-bar" style="height:100%;background:var(--green);border-radius:4px;transition:width .3s;width:0%"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:5px" id="massa-prog-label">0 de 0</div>
+          <button onclick="cancelarDisparo()" style="margin-top:8px;padding:6px 14px;background:none;border:1px solid var(--muted2);border-radius:6px;color:var(--muted);cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif">⏹ Cancelar</button>
+        </div>
+
+        <div style="margin-top:10px;padding:10px 12px;background:rgba(232,154,60,.08);border:1px solid rgba(232,154,60,.2);border-radius:10px;font-size:11px;color:var(--orange);line-height:1.6">
+          ⚠️ <strong>Disparo um a um:</strong> o WhatsApp abrirá para cada cliente com intervalo de 8 segundos. Deixe o celular desbloqueado.<br><br>
+          📋 <strong>Lista de Transmissão:</strong> copie a mensagem e cole na sua lista no WhatsApp — só recebem quem tem seu número salvo.
+        </div>
+
       </div>
       <div class="modal-footer">
-        <button class="btn-primary" onclick="closeModal('modalLembretes')">Fechar</button>
+        <button class="btn-primary" onclick="closeModal('modalLembretes')">Salvar e Fechar</button>
       </div>
     </div>
   </div>
@@ -3574,8 +3658,10 @@
       barbeiros: [{ id: 'eu', nome: 'Eu' }], barbeiroAtual: 'eu',
       metas: { dia: 0, sem: 0, mes: 0 },
       lembreteConfig: { ativo: true, horasAntes: 2 },
+      retornoConfig: { ativo: false, diasDepois: 15 },
       bloqueios: [],
       _lembreteEnviados: new Set(),
+      _retornoEnviados: new Set(),
       tela: 'home', periodo: 'hoje',
       corteNome: '', precoRaw: '', gorjetaRaw: '', gorjetaOn: false, pagamento: 'pix', obs: '',
     };
@@ -3593,7 +3679,8 @@
           barbeiroAtual: state.barbeiroAtual, metas: state.metas,
           nomeUsuario: state.nomeUsuario, chavePix: state.chavePix,
           chavePixTipo: state.chavePixTipo, plano: state.plano,
-          lembreteConfig: state.lembreteConfig, bloqueios: state.bloqueios
+          lembreteConfig: state.lembreteConfig, bloqueios: state.bloqueios,
+          retornoConfig: state.retornoConfig
         });
       } catch (e) { console.error('salvarLocalUsuario:', e); }
     }
@@ -3612,6 +3699,7 @@
         if (cfg.plano) state.plano = cfg.plano;
         if (cfg.lembreteConfig) state.lembreteConfig = cfg.lembreteConfig;
         if (cfg.bloqueios) state.bloqueios = cfg.bloqueios;
+        if (cfg.retornoConfig) state.retornoConfig = cfg.retornoConfig;
       }
       const regs = LS.get(_lkRegs(uid), []);
       if (regs.length > 0) state.registros = regs;
@@ -4385,22 +4473,40 @@
 
       const agExibir = [...agHojePasso, ...agProximos];
 
-      const MAX_PROX = 4;
-      const proxVisiveis = state._proxExpandido ? agExibir : agExibir.slice(0, MAX_PROX);
+      // ── Próximos agendamentos — colapsável ──
+      const MAX_PROX = 3;
+      const agCollapsed = state._proxCollapsed !== false; // collapsed by default se muitos
+      const proxVisiveis = (!agCollapsed || agExibir.length <= MAX_PROX)
+        ? agExibir.slice(0, agCollapsed ? MAX_PROX : agExibir.length)
+        : agExibir.slice(0, MAX_PROX);
 
       const proxHeader = div('home-section-header');
-      const btnVerAgenda = document.createElement('button');
-      btnVerAgenda.className = 'home-section-link'; btnVerAgenda.textContent = 'Ver agenda →';
-      btnVerAgenda.onclick = () => irTela('agendamentos', null);
-      proxHeader.innerHTML = `<div class="home-section-title">📅 Próximos (${agExibir.length})</div>`;
-      proxHeader.appendChild(btnVerAgenda);
+      const proxRight = div('');
+      proxRight.style.cssText = 'display:flex;align-items:center;gap:8px';
+
+      if (agExibir.length > 0) {
+        const btnVerAgenda = document.createElement('button');
+        btnVerAgenda.className = 'home-section-link';
+        btnVerAgenda.textContent = 'Ver todos →';
+        btnVerAgenda.onclick = () => irTela('agendamentos', null);
+        proxRight.appendChild(btnVerAgenda);
+      }
+
+      const totalPend = agExibir.filter(a => !a.atendido).length;
+      const badgeCount = totalPend > 0
+        ? `<span style="background:rgba(201,168,76,.15);color:var(--gold);border-radius:6px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:6px">${totalPend}</span>`
+        : '';
+      proxHeader.innerHTML = `<div class="home-section-title" style="display:flex;align-items:center">📅 Agendamentos${badgeCount}</div>`;
+      proxHeader.appendChild(proxRight);
       wrap.appendChild(proxHeader);
 
       if (agExibir.length === 0) {
-        const vz = div(''); vz.style.cssText = 'text-align:center;color:var(--muted);padding:24px 0;font-size:13px';
-        vz.innerHTML = '<div style="font-size:28px;margin-bottom:8px">📅</div>Nenhum agendamento próximo';
+        const vz = div('');
+        vz.style.cssText = 'text-align:center;color:var(--muted);padding:18px 0 10px;font-size:13px';
+        vz.innerHTML = '<div style="font-size:24px;margin-bottom:6px">📅</div>Nenhum agendamento próximo';
         wrap.appendChild(vz);
       } else {
+        const listaWrap = div('');
         proxVisiveis.forEach(ag => {
           const diffMin = Math.round((ag._ts - agora) / 60000);
           const dtAg = new Date(ag._ts);
@@ -4419,27 +4525,36 @@
           const item = div('prox-item');
           item.style.cursor = 'pointer';
           item.innerHTML = `
-        <div class="prox-hora"><div class="prox-hora-val">${horaStr}</div><div class="prox-hora-label">${diaLabel}</div></div>
-        <div class="prox-divider"></div>
-        <div class="prox-info"><div class="prox-nome">${ag.nome || '—'}</div><div class="prox-servico">✂ ${ag.servico || '—'}</div></div>
-        ${badgeHtml}`;
+            <div class="prox-hora"><div class="prox-hora-val">${horaStr}</div><div class="prox-hora-label">${diaLabel}</div></div>
+            <div class="prox-divider"></div>
+            <div class="prox-info"><div class="prox-nome">${ag.nome || '—'}</div><div class="prox-servico">✂ ${ag.servico || '—'}</div></div>
+            ${badgeHtml}`;
           item.onclick = () => irTela('agendamentos', null);
-          wrap.appendChild(item);
+          listaWrap.appendChild(item);
         });
+        wrap.appendChild(listaWrap);
 
+        // Botão colapsar/expandir
         if (agExibir.length > MAX_PROX) {
-          const btnTodos = document.createElement('button');
-          btnTodos.style.cssText = 'width:100%;margin-top:6px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:"DM Sans",sans-serif;transition:all .2s';
-          btnTodos.textContent = state._proxExpandido
-            ? '▲ Mostrar menos'
-            : `▼ Ver todos (${agExibir.length - MAX_PROX} a mais)`;
-          btnTodos.onclick = () => { state._proxExpandido = !state._proxExpandido; render(); };
-          wrap.appendChild(btnTodos);
+          const btnToggle = document.createElement('button');
+          btnToggle.style.cssText = 'width:100%;margin-top:6px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:11px;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.5px';
+          btnToggle.textContent = agCollapsed
+            ? `▼ Ver mais ${agExibir.length - MAX_PROX} agendamento${agExibir.length - MAX_PROX > 1 ? 's' : ''}`
+            : '▲ Minimizar';
+          btnToggle.onclick = () => { state._proxCollapsed = !agCollapsed; render(); };
+          wrap.appendChild(btnToggle);
         }
       }
 
-      // ── Estatísticas de agendamentos — semana e mês ──
-      const semHeader = div('home-section-header'); semHeader.style.marginTop = '20px';
+      // ── Botão abrir agenda — antes do painel de stats ──
+      const btnAgenda = document.createElement('button');
+      btnAgenda.style.cssText = 'width:100%;margin:12px 0 6px;padding:11px;background:rgba(201,168,76,.07);border:1px solid var(--gold-dim);border-radius:10px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:6px';
+      btnAgenda.innerHTML = '📅 Abrir agenda completa';
+      btnAgenda.onclick = () => irTela('agendamentos', null);
+      wrap.appendChild(btnAgenda);
+
+      // ── Painel de Agendamentos stats (compacto) ──
+      const semHeader = div('home-section-header'); semHeader.style.marginTop = '16px';
       semHeader.innerHTML = `<div class="home-section-title">📊 Painel de Agendamentos</div>`;
       wrap.appendChild(semHeader);
 
@@ -4477,50 +4592,44 @@
       const taxaHoje = agHojeTodos.length > 0 ? Math.round((agHojeAtend / agHojeTodos.length) * 100) : 0;
 
       const painelCard = div('');
-      painelCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px';
+      painelCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px';
 
-      // Grid de estatísticas — só números
+      // Grid de estatísticas compacto — 4 números em linha
       painelCard.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);margin-bottom:2px">${agHojePend}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes hoje</div>
-            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">${agHojeAtend} atendido${agHojeAtend !== 1 ? 's' : ''}</div>` : '<div style="font-size:11px;color:var(--muted);margin-top:4px">—</div>'}
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);line-height:1">${agHojePend}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. hoje</div>
+            <div style="font-size:9px;color:var(--green);margin-top:2px">${agHojeAtend > 0 ? agHojeAtend+'✓' : '—'}</div>
           </div>
-          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--blue);margin-bottom:2px">${agSemPend}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes semana</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">seg → dom</div>
+          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--blue);line-height:1">${agSemPend}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. sem.</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px">esta sem.</div>
           </div>
-          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--orange);margin-bottom:2px">${agMesPend}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pendentes no mês</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">a partir de hoje</div>
+          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--orange);line-height:1">${agMesPend}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. mês</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px">a partir hj</div>
           </div>
-          <div style="background:#0a0a0a;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--green);margin-bottom:2px">${agMesTotalAtend}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Atendidos no mês</div>
-            ${agHojeTodos.length > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">hoje: ${taxaHoje}% taxa</div>` : '<div style="font-size:11px;color:var(--muted);margin-top:4px">—</div>'}
+          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--green);line-height:1">${agMesTotalAtend}</div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Atend. mês</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px">${agHojeTodos.length > 0 ? taxaHoje+'% taxa' : '—'}</div>
           </div>
-        </div>
-        <button onclick="irTela('agendamentos',null)" style="width:100%;margin-top:12px;padding:10px;background:rgba(201,168,76,.08);border:1px solid var(--gold-dim);border-radius:10px;color:var(--gold);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.5px">📅 Abrir agenda completa →</button>`;
+        </div>`;
 
-      // Ticket médio do mês
+      // Ticket médio — linha fina abaixo dos stats
       const ticketMesMedio = regMes.length > 0 ? regMes.reduce((s,r) => s+r.valor,0) / regMes.length : 0;
       const ticketHojeMedio = regHoje.length > 0 ? regHoje.reduce((s,r) => s+r.valor,0) / regHoje.length : 0;
       if (ticketMesMedio > 0) {
-        const ticketRow = div('');
-        ticketRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px';
+        const ticketRow = document.createElement('div');
+        ticketRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)';
         ticketRow.innerHTML = `
-          <div style="background:#0a0a0a;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Ticket médio hoje</div>
-            <div class="fin-card-val${blur}" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold)">${ticketHojeMedio > 0 ? brl(ticketHojeMedio) : '—'}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">${regHoje.length} atend.</div>
-          </div>
-          <div style="background:#0a0a0a;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Ticket médio mês</div>
-            <div class="fin-card-val${blur}" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold)">${brl(ticketMesMedio)}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">${regMes.length} atend.</div>
+          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket médio</span>
+          <div style="display:flex;gap:16px">
+            ${ticketHojeMedio > 0 ? `<span style="font-size:12px;color:var(--muted)">Hoje: <span class="fin-card-val${blur}" style="font-size:13px;font-family:'Playfair Display',serif;color:var(--gold)">${brl(ticketHojeMedio)}</span></span>` : ''}
+            <span style="font-size:12px;color:var(--muted)">Mês: <span class="fin-card-val${blur}" style="font-size:13px;font-family:'Playfair Display',serif;color:var(--gold)">${brl(ticketMesMedio)}</span></span>
           </div>`;
         painelCard.appendChild(ticketRow);
       }
@@ -4536,15 +4645,15 @@
       });
       const topServMes = Object.entries(mapServMes).sort((a,b) => b[1].total - a[1].total).slice(0, 3);
       if (topServMes.length > 0) {
-        const rankHeader = div('home-section-header'); rankHeader.style.marginTop = '20px';
+        const rankHeader = div('home-section-header'); rankHeader.style.marginTop = '16px';
         const btnVerHistorico = document.createElement('button');
-        btnVerHistorico.className = 'home-section-link'; btnVerHistorico.textContent = 'Ver completo →';
+        btnVerHistorico.className = 'home-section-link'; btnVerHistorico.textContent = 'Histórico →';
         btnVerHistorico.onclick = () => irTela('historico', document.getElementById('nav-historico'));
-        rankHeader.innerHTML = `<div class="home-section-title">🏆 Top Serviços do Mês</div>`;
+        rankHeader.innerHTML = `<div class="home-section-title">🏆 Top Serviços</div>`;
         rankHeader.appendChild(btnVerHistorico);
         wrap.appendChild(rankHeader);
         const rankCard = div('');
-        rankCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;margin-bottom:14px';
+        rankCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:12px';
         topServMes.forEach(([nome, info], i) => {
           const row = div('mini-ranking-row');
           const medalhas = ['🥇','🥈','🥉'];
@@ -4561,15 +4670,15 @@
       // ── Botão Relatório Mensal ──
       if (regMes.length > 0) {
         const relBtn = document.createElement('button');
-        relBtn.style.cssText = 'width:100%;padding:13px;background:rgba(91,156,246,.08);border:1px solid rgba(91,156,246,.25);border-radius:12px;color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px';
-        relBtn.innerHTML = '📊 Exportar Relatório Mensal';
+        relBtn.style.cssText = 'width:100%;padding:11px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.3px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;transition:border-color .2s';
+        relBtn.innerHTML = '📊 Exportar relatório do mês';
+        relBtn.onmouseover = () => relBtn.style.borderColor = 'var(--gold-dim)';
+        relBtn.onmouseout = () => relBtn.style.borderColor = 'var(--border)';
         relBtn.onclick = () => {
-          // Muda o período para mês e navega para histórico
           state.periodo = 'mes';
           irTela('historico', document.getElementById('nav-historico'));
           setTimeout(() => {
-            const exportFn = window.exportarRendimento || null;
-            if (exportFn) exportFn(regMes, regMes.reduce((s,r)=>s+r.valor,0), regMes.reduce((s,r)=>s+(r.gorjeta||0),0));
+            if (window.exportarRendimento) window.exportarRendimento(regMes, regMes.reduce((s,r)=>s+r.valor,0), regMes.reduce((s,r)=>s+(r.gorjeta||0),0));
           }, 200);
         };
         wrap.appendChild(relBtn);
@@ -5718,7 +5827,14 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       { icon: '✂', label: 'Gerenciar Serviços', sub: 'Editar cortes e preços do booking', fn: () => { renderModalCortes(); openModal('modalCortes'); } },
       { icon: '📅', label: 'Gerenciar Vagas', sub: 'Horários disponíveis para agendamento online', fn: () => { abrirModalVagas(); } },
       { icon: '🎯', label: 'Metas de Faturamento', sub: 'Defina metas diária, semanal e mensal', fn: () => { abrirModalMeta(); openModal('modalMeta'); } },
-      { icon: '💬', label: 'Lembretes WhatsApp', sub: state.lembreteConfig && state.lembreteConfig.ativo ? `Ativo · avisar ${(state.lembreteConfig.horasAntes||2) === 24 ? '1 dia' : (state.lembreteConfig.horasAntes||2)+'h'} antes` : 'Desativado · clique para configurar', fn: () => abrirModalLembretes() },
+      { icon: '💬', label: 'Lembretes WhatsApp', sub: (() => {
+        const lem = state.lembreteConfig;
+        const ret = state.retornoConfig;
+        const parts = [];
+        if (lem && lem.ativo) parts.push(`Lembrete ${(lem.horasAntes||2) === 24 ? '1 dia' : (lem.horasAntes||2)+'h'} antes`);
+        if (ret && ret.ativo) parts.push(`Retorno ${ret.diasDepois||15} dias`);
+        return parts.length ? parts.join(' · ') : 'Desativado · clique para configurar';
+      })(), fn: () => abrirModalLembretes() },
       { icon: '🔒', label: 'Bloquear Horário', sub: `${(state.bloqueios||[]).filter(b=>(b.dataFim||b.dataIni)>=new Date().toISOString().slice(0,10)).length} bloqueio(s) ativo(s)`, fn: () => abrirModalBloqueio() },
       {
         icon: '◈', label: 'Chave PIX', sub: state.chavePix ? `Chave: ${state.chavePix}${state.chavePixTipo ? ' (' + ({ celular: 'Celular', email: 'E-mail', cpf: 'CPF', aleatoria: 'Aleatória' }[state.chavePixTipo] || state.chavePixTipo) + ')' : ''}` : 'Cadastrar chave para receber via PIX', fn: () => {
@@ -7031,7 +7147,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       const tempoStr = diffMin < 60 ? `em ${diffMin} minutos` : `às ${horaStr}`;
       const msg = `Olá ${nome}! 💈 Lembrando que seu horário de *${servico}* está marcado para hoje ${tempoStr}. Te esperamos! ✂️`;
       state._lembreteEnviados.add(id);
-      // Salva no LS para persistir na sessão
       try {
         const enviados = JSON.parse(localStorage.getItem('bc_lem_' + (state.uid||'')) || '[]');
         enviados.push(id);
@@ -7048,6 +7163,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
     };
 
     window.abrirModalLembretes = function() {
+      // Lembrete agendamento
       const toggle = document.getElementById('lembrete-ativo-toggle');
       if (toggle) toggle.checked = !!(state.lembreteConfig && state.lembreteConfig.ativo);
       const horas = (state.lembreteConfig && state.lembreteConfig.horasAntes) || 2;
@@ -7057,6 +7173,16 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       });
       const label = document.getElementById('lembrete-horas-label');
       if (label) label.textContent = horas === 24 ? '1 dia antes' : `${horas} hora${horas>1?'s':''} antes`;
+      // Retorno
+      const toggleR = document.getElementById('retorno-ativo-toggle');
+      if (toggleR) toggleR.checked = !!(state.retornoConfig && state.retornoConfig.ativo);
+      const dias = (state.retornoConfig && state.retornoConfig.diasDepois) || 15;
+      [10,15,30].forEach(d => {
+        const btn = document.getElementById('rbtn-' + d);
+        if (btn) btn.classList.toggle('active', d === dias);
+      });
+      const labelR = document.getElementById('retorno-dias-label');
+      if (labelR) labelR.textContent = `${dias} dias após atendimento`;
       openModal('modalLembretes');
     };
 
@@ -7080,18 +7206,166 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
       saveConfig();
     };
 
-    // Auto-check lembretes a cada minuto
+    window.setRetornoDias = function(d) {
+      if (!state.retornoConfig) state.retornoConfig = { ativo: true, diasDepois: d };
+      state.retornoConfig.diasDepois = d;
+      [10,15,30].forEach(n => {
+        const btn = document.getElementById('rbtn-' + n);
+        if (btn) btn.classList.toggle('active', n === d);
+      });
+      const label = document.getElementById('retorno-dias-label');
+      if (label) label.textContent = `${d} dias após atendimento`;
+      salvarConfigRetorno();
+    };
+
+    window.salvarConfigRetorno = function() {
+      const toggle = document.getElementById('retorno-ativo-toggle');
+      if (!state.retornoConfig) state.retornoConfig = { ativo: false, diasDepois: 15 };
+      state.retornoConfig.ativo = toggle ? toggle.checked : false;
+      salvarLocalUsuario(state.uid);
+      saveConfig();
+    };
+
+    // ── AUTO-DISPARO: verifica e abre WhatsApp automaticamente ───────────────────
+    function checarLembretesAutomaticos() {
+      if (!state.uid) return;
+      const agora = Date.now();
+
+      // 1. LEMBRETE DE AGENDAMENTO (antecedência configurada)
+      if (state.lembreteConfig && state.lembreteConfig.ativo) {
+        const horasAntes = state.lembreteConfig.horasAntes || 2;
+        const msAntes = horasAntes * 60 * 60 * 1000;
+        const janela = 5 * 60 * 1000; // janela de 5 min
+
+        (state.agendamentos || []).forEach(ag => {
+          if (!ag.whatsapp || !ag.dataHora) return;
+          const id = 'lem_' + ag.id;
+          if (state._lembreteEnviados.has(id)) return;
+          const diff = ag.dataHora - agora;
+          if (diff > 0 && diff <= msAntes && diff > (msAntes - janela)) {
+            state._lembreteEnviados.add(id);
+            try {
+              const arr = JSON.parse(localStorage.getItem('bc_lem_' + state.uid) || '[]');
+              arr.push(id);
+              localStorage.setItem('bc_lem_' + state.uid, JSON.stringify(arr.slice(-100)));
+            } catch(e) {}
+            const n = ag.whatsapp.replace(/\D/g, '');
+            if (!n) return;
+            const dt = new Date(ag.dataHora);
+            const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const diffMin = Math.round(diff / 60000);
+            const tempoStr = diffMin < 60 ? `em ${diffMin} minutos` : `às ${horaStr}`;
+            const msg = `Olá ${ag.nome || 'cliente'}! 💈 Lembrando que seu horário de *${ag.servico || 'atendimento'}* está marcado para hoje ${tempoStr}. Te esperamos! ✂️`;
+            window.open(`https://wa.me/55${n}?text=${encodeURIComponent(msg)}`, '_blank');
+            showFeedback('🔔 Lembrete automático enviado para ' + (ag.nome || 'cliente') + '!', 'ok');
+          }
+        });
+      }
+
+      // 2. MENSAGEM DE RETORNO (após atendimento)
+      if (state.retornoConfig && state.retornoConfig.ativo) {
+        const diasDepois = state.retornoConfig.diasDepois || 15;
+        const msDepois = diasDepois * 24 * 60 * 60 * 1000;
+        const janela = 60 * 60 * 1000; // janela de 1h
+
+        const retornoEnviados = (() => {
+          try { return new Set(JSON.parse(localStorage.getItem('bc_ret_' + state.uid) || '[]')); } catch(e) { return new Set(); }
+        })();
+
+        const _dispararRetorno = (id, wpp, nome, servico) => {
+          if (retornoEnviados.has(id) || state._retornoEnviados.has(id)) return;
+          state._retornoEnviados.add(id);
+          retornoEnviados.add(id);
+          try {
+            localStorage.setItem('bc_ret_' + state.uid, JSON.stringify([...retornoEnviados].slice(-100)));
+          } catch(e) {}
+          const n = (wpp || '').replace(/\D/g, '');
+          if (!n) return;
+          const msg = `Olá ${nome || 'cliente'}! ✂️ Já faz ${diasDepois} dias desde o seu último *${servico || 'corte'}* aqui na barbearia. Que tal agendar um novo horário? 💈 Estamos te esperando!`;
+          window.open(`https://wa.me/55${n}?text=${encodeURIComponent(msg)}`, '_blank');
+          showFeedback('🔄 Mensagem de retorno enviada para ' + (nome || 'cliente') + '!', 'ok');
+        };
+
+        // Agendamentos passados
+        (state.agendamentos || []).forEach(ag => {
+          if (!ag.whatsapp || !ag.dataHora || ag.dataHora >= agora) return;
+          const t = agora - ag.dataHora;
+          if (t >= msDepois && t < (msDepois + janela)) {
+            _dispararRetorno('ret_' + ag.id, ag.whatsapp, ag.nome, ag.servico);
+          }
+        });
+
+        // Registros de atendimento
+        (state.registros || []).forEach(reg => {
+          if (!reg.whatsapp || !reg.ts) return;
+          const t = agora - reg.ts;
+          if (t >= msDepois && t < (msDepois + janela)) {
+            _dispararRetorno('ret_reg_' + reg.id, reg.whatsapp, reg.nome, reg.corteNome || reg.servico);
+          }
+        });
+      }
+    }
+
+    // Auto-check a cada minuto
     setInterval(() => {
+      if (state.uid) checarLembretesAutomaticos();
       if (state.tela === 'home' && state.lembreteConfig && state.lembreteConfig.ativo) render();
     }, 60000);
 
-    // Recuperar lembretes já enviados do LS
+    // Recuperar IDs já enviados do LS
     function carregarLembreteEnviados() {
       try {
         const enviados = JSON.parse(localStorage.getItem('bc_lem_' + (state.uid||'')) || '[]');
         enviados.forEach(id => state._lembreteEnviados.add(id));
       } catch(e) {}
+      try {
+        const retornos = JSON.parse(localStorage.getItem('bc_ret_' + (state.uid||'')) || '[]');
+        retornos.forEach(id => state._retornoEnviados.add(id));
+      } catch(e) {}
     }
+
+    // ── DISPARO EM MASSA ──────────────────────────────────────────────────────────
+    let _massaFiltro = 'todos';
+    let _massaCancelado = false;
+
+    function _getClientesMassa() {
+      const vistos = new Set();
+      const lista = [];
+
+      const adicionar = (wpp, nome) => {
+        const n = (wpp || '').replace(/\D/g, '');
+        if (!n || vistos.has(n)) return;
+        vistos.add(n);
+        lista.push({ wpp: n, nome: nome || 'cliente' });
+      };
+
+      if (_massaFiltro === 'todos' || _massaFiltro === 'agendados') {
+        (state.agendamentos || []).forEach(ag => adicionar(ag.whatsapp, ag.nome));
+      }
+      if (_massaFiltro === 'todos' || _massaFiltro === 'atendidos') {
+        (state.registros || []).forEach(reg => adicionar(reg.whatsapp, reg.nome));
+      }
+      return lista;
+    }
+
+    function _atualizarContagemMassa() {
+      const el = document.getElementById('massa-contagem');
+      if (!el) return;
+      const total = _getClientesMassa().length;
+      el.textContent = total === 0
+        ? '⚠️ Nenhum cliente encontrado com este filtro'
+        : `✅ ${total} cliente${total > 1 ? 's' : ''} encontrado${total > 1 ? 's' : ''}`;
+      el.style.color = total === 0 ? 'var(--orange)' : 'var(--green)';
+    }
+
+    window.setMassaFiltro = function(f) {
+      _massaFiltro = f;
+      ['todos','agendados','atendidos'].forEach(k => {
+        const btn = document.getElementById('massa-filtro-' + k);
+        if (btn) btn.classList.toggle('active', k === f);
+      });
+      _atualizarContagemMassa();
+    };
 
     // ── BLOQUEIO DE HORÁRIO ────────────────────────────────────────────────────────
     window.abrirModalBloqueio = function() {
