@@ -4584,215 +4584,192 @@
 
       const agExibir = [...agHojePasso, ...agProximos];
 
-      // ── Próximos agendamentos — colapsável ──
-      const MAX_PROX = 3;
-      const agCollapsed = state._proxCollapsed !== false; // collapsed by default se muitos
-      const proxVisiveis = (!agCollapsed || agExibir.length <= MAX_PROX)
-        ? agExibir.slice(0, agCollapsed ? MAX_PROX : agExibir.length)
-        : agExibir.slice(0, MAX_PROX);
+      // ── Bloco Agendamentos — colapsável pelo header ──
+      if (typeof state._blocoAgCollapsed === 'undefined') state._blocoAgCollapsed = false;
+      const blocoAgOpen = !state._blocoAgCollapsed;
 
       const proxHeader = div('home-section-header');
-      const proxRight = div('');
-      proxRight.style.cssText = 'display:flex;align-items:center;gap:8px';
-
-      if (agExibir.length > 0) {
-        const btnVerAgenda = document.createElement('button');
-        btnVerAgenda.className = 'home-section-link';
-        btnVerAgenda.textContent = 'Ver todos →';
-        btnVerAgenda.onclick = () => irTela('agendamentos', null);
-        proxRight.appendChild(btnVerAgenda);
-      }
-
+      proxHeader.style.cssText = 'cursor:pointer;user-select:none;margin-bottom:' + (blocoAgOpen ? '10px' : '4px');
       const totalPend = agExibir.filter(a => !a.atendido).length;
       const badgeCount = totalPend > 0
         ? `<span style="background:rgba(201,168,76,.15);color:var(--gold);border-radius:6px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:6px">${totalPend}</span>`
         : '';
-      proxHeader.innerHTML = `<div class="home-section-title" style="display:flex;align-items:center">📅 Agendamentos${badgeCount}</div>`;
-      proxHeader.appendChild(proxRight);
+      proxHeader.innerHTML = `
+        <div class="home-section-title" style="display:flex;align-items:center">📅 Agendamentos${badgeCount}</div>
+        <span style="color:var(--muted);font-size:14px;transition:transform .2s;display:inline-block;transform:rotate(${blocoAgOpen?'0':'180deg'})">${blocoAgOpen?'▲':'▼'}</span>`;
+      proxHeader.onclick = () => { state._blocoAgCollapsed = !state._blocoAgCollapsed; render(); };
       wrap.appendChild(proxHeader);
 
-      if (agExibir.length === 0) {
-        const vz = div('');
-        vz.style.cssText = 'text-align:center;color:var(--muted);padding:18px 0 10px;font-size:13px';
-        vz.innerHTML = '<div style="font-size:24px;margin-bottom:6px">📅</div>Nenhum agendamento próximo';
-        wrap.appendChild(vz);
-      } else {
-        const listaWrap = div('');
-        proxVisiveis.forEach(ag => {
-          const diffMin = Math.round((ag._ts - agora) / 60000);
-          const dtAg = new Date(ag._ts);
-          const horaStr = dtAg.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-          const diaAgStr = dtAg.toISOString().slice(0, 10);
-          const isHojeAg = diaAgStr === hojeStr;
-          const diaLabel = isHojeAg ? 'hoje'
-            : dtAg.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      if (blocoAgOpen) {
+        const MAX_PROX = 3;
+        const agCollapsed = state._proxCollapsed !== false;
+        const proxVisiveis = agExibir.slice(0, agCollapsed ? MAX_PROX : agExibir.length);
 
-          let badgeHtml = '';
-          if (diffMin <= 0 && diffMin >= -5) badgeHtml = `<div class="prox-badge badge-iminente">agora</div>`;
-          else if (diffMin > 0 && diffMin <= 30) badgeHtml = `<div class="prox-badge badge-iminente">em ${diffMin}min</div>`;
-          else if (diffMin < -5) badgeHtml = `<div class="prox-badge" style="background:rgba(119,119,119,.15);color:var(--muted)">passou</div>`;
-          else badgeHtml = `<div class="prox-badge badge-hoje-conf">confirmado</div>`;
+        if (agExibir.length === 0) {
+          const vz = div('');
+          vz.style.cssText = 'text-align:center;color:var(--muted);padding:18px 0 10px;font-size:13px';
+          vz.innerHTML = '<div style="font-size:24px;margin-bottom:6px">📅</div>Nenhum agendamento próximo';
+          wrap.appendChild(vz);
+        } else {
+          const listaWrap = div('');
+          proxVisiveis.forEach(ag => {
+            const diffMin = Math.round((ag._ts - agora) / 60000);
+            const dtAg = new Date(ag._ts);
+            const horaStr = dtAg.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const diaAgStr = dtAg.toISOString().slice(0, 10);
+            const isHojeAg = diaAgStr === hojeStr;
+            const diaLabel = isHojeAg ? 'hoje'
+              : dtAg.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
-          const item = div('prox-item');
-          item.style.cursor = 'pointer';
-          item.innerHTML = `
-            <div class="prox-hora"><div class="prox-hora-val">${horaStr}</div><div class="prox-hora-label">${diaLabel}</div></div>
-            <div class="prox-divider"></div>
-            <div class="prox-info"><div class="prox-nome">${ag.nome || '—'}</div><div class="prox-servico">✂ ${ag.servico || '—'}</div></div>
-            ${badgeHtml}`;
-          item.onclick = () => irTela('agendamentos', null);
-          listaWrap.appendChild(item);
-        });
-        wrap.appendChild(listaWrap);
+            let badgeHtml = '';
+            if (diffMin <= 0 && diffMin >= -5) badgeHtml = `<div class="prox-badge badge-iminente">agora</div>`;
+            else if (diffMin > 0 && diffMin <= 30) badgeHtml = `<div class="prox-badge badge-iminente">em ${diffMin}min</div>`;
+            else if (diffMin < -5) badgeHtml = `<div class="prox-badge" style="background:rgba(119,119,119,.15);color:var(--muted)">passou</div>`;
+            else badgeHtml = `<div class="prox-badge badge-hoje-conf">confirmado</div>`;
 
-        // Botão colapsar/expandir
-        if (agExibir.length > MAX_PROX) {
-          const btnToggle = document.createElement('button');
-          btnToggle.style.cssText = 'width:100%;margin-top:6px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:11px;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.5px';
-          btnToggle.textContent = agCollapsed
-            ? `▼ Ver mais ${agExibir.length - MAX_PROX} agendamento${agExibir.length - MAX_PROX > 1 ? 's' : ''}`
-            : '▲ Minimizar';
-          btnToggle.onclick = () => { state._proxCollapsed = !agCollapsed; render(); };
-          wrap.appendChild(btnToggle);
+            const item = div('prox-item');
+            item.style.cursor = 'pointer';
+            item.innerHTML = `
+              <div class="prox-hora"><div class="prox-hora-val">${horaStr}</div><div class="prox-hora-label">${diaLabel}</div></div>
+              <div class="prox-divider"></div>
+              <div class="prox-info"><div class="prox-nome">${ag.nome || '—'}</div><div class="prox-servico">✂ ${ag.servico || '—'}</div></div>
+              ${badgeHtml}`;
+            item.onclick = () => irTela('agendamentos', null);
+            listaWrap.appendChild(item);
+          });
+          wrap.appendChild(listaWrap);
+
+          // Ver mais / minimizar dentro do bloco
+          if (agExibir.length > MAX_PROX) {
+            const btnToggle = document.createElement('button');
+            btnToggle.style.cssText = 'width:100%;margin-top:6px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:11px;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.5px';
+            btnToggle.textContent = agCollapsed
+              ? `▼ Ver mais ${agExibir.length - MAX_PROX} agendamento${agExibir.length - MAX_PROX > 1 ? 's' : ''}`
+              : '▲ Minimizar';
+            btnToggle.onclick = (e) => { e.stopPropagation(); state._proxCollapsed = !agCollapsed; render(); };
+            wrap.appendChild(btnToggle);
+          }
         }
       }
 
-      // ── Botão abrir agenda — antes do painel de stats ──
-      const btnAgenda = document.createElement('button');
-      btnAgenda.style.cssText = 'width:100%;margin:12px 0 6px;padding:11px;background:rgba(201,168,76,.07);border:1px solid var(--gold-dim);border-radius:10px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:6px';
-      btnAgenda.innerHTML = '📅 Abrir agenda completa';
-      btnAgenda.onclick = () => irTela('agendamentos', null);
-      wrap.appendChild(btnAgenda);
+      // ── Bloco Painel de Agendamentos — colapsável pelo header ──
+      if (typeof state._blocoPainelCollapsed === 'undefined') state._blocoPainelCollapsed = false;
+      const blocoPainelOpen = !state._blocoPainelCollapsed;
 
-      // ── Painel de Agendamentos stats (compacto) ──
-      const semHeader = div('home-section-header'); semHeader.style.marginTop = '16px';
-      semHeader.innerHTML = `<div class="home-section-title">📊 Painel de Agendamentos</div>`;
+      // ── Header Painel colapsável ──
+      const semHeader = div('home-section-header');
+      semHeader.style.cssText = 'margin-top:16px;cursor:pointer;user-select:none;margin-bottom:' + (blocoPainelOpen ? '10px' : '4px');
+      semHeader.innerHTML = `
+        <div class="home-section-title">📊 Painel de Agendamentos</div>
+        <span style="color:var(--muted);font-size:14px">${blocoPainelOpen ? '▲' : '▼'}</span>`;
+      semHeader.onclick = () => { state._blocoPainelCollapsed = !state._blocoPainelCollapsed; render(); };
       wrap.appendChild(semHeader);
 
-      // Cálculos
-      const inicioSemana = new Date(); inicioSemana.setHours(0,0,0,0);
-      const diaSem = inicioSemana.getDay();
-      inicioSemana.setDate(inicioSemana.getDate() - diaSem); // domingo
-      const fimSemana = new Date(inicioSemana); fimSemana.setDate(fimSemana.getDate() + 6); fimSemana.setHours(23,59,59,999);
-      const [mIni, mFim] = monthRange();
+      if (blocoPainelOpen) {
+        // Cálculos
+        const inicioSemana = new Date(); inicioSemana.setHours(0,0,0,0);
+        const diaSem = inicioSemana.getDay();
+        inicioSemana.setDate(inicioSemana.getDate() - diaSem);
+        const fimSemana = new Date(inicioSemana); fimSemana.setDate(fimSemana.getDate() + 6); fimSemana.setHours(23,59,59,999);
+        const [mIni, mFim] = monthRange();
 
-      const agSemPend = state.agendamentos.filter(a => {
-        if (a.atendido) return false;
-        const ts = a.dataHora || 0;
-        return ts >= inicioSemana.getTime() && ts <= fimSemana.getTime();
-      }).length;
+        const agSemPend = state.agendamentos.filter(a => {
+          if (a.atendido) return false;
+          const ts = a.dataHora || 0;
+          return ts >= inicioSemana.getTime() && ts <= fimSemana.getTime();
+        }).length;
 
-      const agMesPend = state.agendamentos.filter(a => {
-        if (a.atendido) return false;
-        const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
-        return dStr >= hojeStr && dStr >= mIni && dStr <= mFim;
-      }).length;
+        const agMesPend = state.agendamentos.filter(a => {
+          if (a.atendido) return false;
+          const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
+          return dStr >= hojeStr && dStr >= mIni && dStr <= mFim;
+        }).length;
 
-      const agMesTotalAtend = state.agendamentos.filter(a => {
-        if (!a.atendido) return false;
-        const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
-        return dStr >= mIni && dStr <= mFim;
-      }).length;
+        const agMesTotalAtend = state.agendamentos.filter(a => {
+          if (!a.atendido) return false;
+          const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
+          return dStr >= mIni && dStr <= mFim;
+        }).length;
 
-      const agHojeTodos = state.agendamentos.filter(a => {
-        const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
-        return dStr === hojeStr;
-      });
-      const agHojeAtend = agHojeTodos.filter(a => a.atendido).length;
-      const agHojePend = agHojeTodos.filter(a => !a.atendido).length;
-      const taxaHoje = agHojeTodos.length > 0 ? Math.round((agHojeAtend / agHojeTodos.length) * 100) : 0;
-
-      const painelCard = div('');
-      painelCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px';
-
-      // Grid de estatísticas compacto — 4 números em linha
-      painelCard.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
-          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);line-height:1">${agHojePend}</div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. hoje</div>
-            <div style="font-size:9px;color:var(--green);margin-top:2px">${agHojeAtend > 0 ? agHojeAtend+'✓' : '—'}</div>
-          </div>
-          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--blue);line-height:1">${agSemPend}</div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. sem.</div>
-            <div style="font-size:9px;color:var(--muted);margin-top:2px">esta sem.</div>
-          </div>
-          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--orange);line-height:1">${agMesPend}</div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. mês</div>
-            <div style="font-size:9px;color:var(--muted);margin-top:2px">a partir hj</div>
-          </div>
-          <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--green);line-height:1">${agMesTotalAtend}</div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Atend. mês</div>
-            <div style="font-size:9px;color:var(--muted);margin-top:2px">${agHojeTodos.length > 0 ? taxaHoje+'% taxa' : '—'}</div>
-          </div>
-        </div>`;
-
-      // Ticket médio — linha fina abaixo dos stats
-      const ticketMesMedio = regMes.length > 0 ? regMes.reduce((s,r) => s+r.valor,0) / regMes.length : 0;
-      const ticketHojeMedio = regHoje.length > 0 ? regHoje.reduce((s,r) => s+r.valor,0) / regHoje.length : 0;
-      if (ticketMesMedio > 0) {
-        const ticketRow = document.createElement('div');
-        ticketRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)';
-        ticketRow.innerHTML = `
-          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket médio</span>
-          <div style="display:flex;gap:16px">
-            ${ticketHojeMedio > 0 ? `<span style="font-size:12px;color:var(--muted)">Hoje: <span class="fin-card-val${blur}" style="font-size:13px;font-family:'Playfair Display',serif;color:var(--gold)">${brl(ticketHojeMedio)}</span></span>` : ''}
-            <span style="font-size:12px;color:var(--muted)">Mês: <span class="fin-card-val${blur}" style="font-size:13px;font-family:'Playfair Display',serif;color:var(--gold)">${brl(ticketMesMedio)}</span></span>
-          </div>`;
-        painelCard.appendChild(ticketRow);
-      }
-
-      wrap.appendChild(painelCard);
-
-      // ── Mini Ranking de Serviços do Mês ──
-      const mapServMes = {};
-      regMes.forEach(r => {
-        if (!mapServMes[r.corte]) mapServMes[r.corte] = { qtd: 0, total: 0 };
-        mapServMes[r.corte].qtd++;
-        mapServMes[r.corte].total += r.valor;
-      });
-      const topServMes = Object.entries(mapServMes).sort((a,b) => b[1].total - a[1].total).slice(0, 3);
-      if (topServMes.length > 0) {
-        const rankHeader = div('home-section-header'); rankHeader.style.marginTop = '16px';
-        const btnVerHistorico = document.createElement('button');
-        btnVerHistorico.className = 'home-section-link'; btnVerHistorico.textContent = 'Histórico →';
-        btnVerHistorico.onclick = () => irTela('historico', document.getElementById('nav-historico'));
-        rankHeader.innerHTML = `<div class="home-section-title">🏆 Top Serviços</div>`;
-        rankHeader.appendChild(btnVerHistorico);
-        wrap.appendChild(rankHeader);
-        const rankCard = div('');
-        rankCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:12px';
-        topServMes.forEach(([nome, info], i) => {
-          const row = div('mini-ranking-row');
-          const medalhas = ['🥇','🥈','🥉'];
-          row.innerHTML = `
-            <div class="mini-rank-pos">${medalhas[i]||i+1}</div>
-            <div class="mini-rank-nome">${nome}</div>
-            <div class="mini-rank-qtd">${info.qtd}×</div>
-            <div class="mini-rank-val">${brl(info.total)}</div>`;
-          rankCard.appendChild(row);
+        const agHojeTodos = state.agendamentos.filter(a => {
+          const dStr = new Date(a.dataHora || 0).toISOString().slice(0, 10);
+          return dStr === hojeStr;
         });
-        wrap.appendChild(rankCard);
-      }
+        const agHojeAtend = agHojeTodos.filter(a => a.atendido).length;
+        const agHojePend = agHojeTodos.filter(a => !a.atendido).length;
+        const taxaHoje = agHojeTodos.length > 0 ? Math.round((agHojeAtend / agHojeTodos.length) * 100) : 0;
 
-      // ── Botão Relatório Mensal ──
-      if (regMes.length > 0) {
-        const relBtn = document.createElement('button');
-        relBtn.style.cssText = 'width:100%;padding:11px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:.3px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;transition:border-color .2s';
-        relBtn.innerHTML = '📊 Exportar relatório do mês';
-        relBtn.onmouseover = () => relBtn.style.borderColor = 'var(--gold-dim)';
-        relBtn.onmouseout = () => relBtn.style.borderColor = 'var(--border)';
-        relBtn.onclick = () => {
-          state.periodo = 'mes';
-          irTela('historico', document.getElementById('nav-historico'));
-          setTimeout(() => {
-            if (window.exportarRendimento) window.exportarRendimento(regMes, regMes.reduce((s,r)=>s+r.valor,0), regMes.reduce((s,r)=>s+(r.gorjeta||0),0));
-          }, 200);
-        };
-        wrap.appendChild(relBtn);
+        const painelCard = div('');
+        painelCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px';
+        painelCard.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+            <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+              <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);line-height:1">${agHojePend}</div>
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. hoje</div>
+              <div style="font-size:9px;color:var(--green);margin-top:2px">${agHojeAtend > 0 ? agHojeAtend+'✓' : '—'}</div>
+            </div>
+            <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+              <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--blue);line-height:1">${agSemPend}</div>
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. sem.</div>
+              <div style="font-size:9px;color:var(--muted);margin-top:2px">esta sem.</div>
+            </div>
+            <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+              <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--orange);line-height:1">${agMesPend}</div>
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Pend. mês</div>
+              <div style="font-size:9px;color:var(--muted);margin-top:2px">a partir hj</div>
+            </div>
+            <div style="background:#0a0a0a;border-radius:10px;padding:10px 6px;text-align:center;border:1px solid var(--border)">
+              <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--green);line-height:1">${agMesTotalAtend}</div>
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">Atend. mês</div>
+              <div style="font-size:9px;color:var(--muted);margin-top:2px">${agHojeTodos.length > 0 ? taxaHoje+'% taxa' : '—'}</div>
+            </div>
+          </div>`;
+
+        const ticketMesMedio = regMes.length > 0 ? regMes.reduce((s,r) => s+r.valor,0) / regMes.length : 0;
+        const ticketHojeMedio = regHoje.length > 0 ? regHoje.reduce((s,r) => s+r.valor,0) / regHoje.length : 0;
+        if (ticketMesMedio > 0) {
+          const ticketRow = document.createElement('div');
+          ticketRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)';
+          ticketRow.innerHTML = `
+            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket médio</span>
+            <div style="display:flex;gap:16px">
+              ${ticketHojeMedio > 0 ? `<span style="font-size:12px;color:var(--muted)">Hoje: <span class="fin-card-val${blur}" style="font-size:13px;font-family:'Playfair Display',serif;color:var(--gold)">${brl(ticketHojeMedio)}</span></span>` : ''}
+              <span style="font-size:12px;color:var(--muted)">Mês: <span class="fin-card-val${blur}" style="font-size:13px;font-family:'Playfair Display',serif;color:var(--gold)">${brl(ticketMesMedio)}</span></span>
+            </div>`;
+          painelCard.appendChild(ticketRow);
+        }
+        wrap.appendChild(painelCard);
+
+        // ── Mini Ranking de Serviços ──
+        const mapServMes = {};
+        regMes.forEach(r => {
+          if (!mapServMes[r.corte]) mapServMes[r.corte] = { qtd: 0, total: 0 };
+          mapServMes[r.corte].qtd++;
+          mapServMes[r.corte].total += r.valor;
+        });
+        const topServMes = Object.entries(mapServMes).sort((a,b) => b[1].total - a[1].total).slice(0, 3);
+        if (topServMes.length > 0) {
+          const rankHeader = div('home-section-header'); rankHeader.style.marginTop = '16px';
+          const btnVerHistorico = document.createElement('button');
+          btnVerHistorico.className = 'home-section-link'; btnVerHistorico.textContent = 'Histórico →';
+          btnVerHistorico.onclick = () => irTela('historico', document.getElementById('nav-historico'));
+          rankHeader.innerHTML = `<div class="home-section-title">🏆 Top Serviços</div>`;
+          rankHeader.appendChild(btnVerHistorico);
+          wrap.appendChild(rankHeader);
+          const rankCard = div('');
+          rankCard.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:12px';
+          topServMes.forEach(([nome, info], i) => {
+            const row = div('mini-ranking-row');
+            const medalhas = ['🥇','🥈','🥉'];
+            row.innerHTML = `
+              <div class="mini-rank-pos">${medalhas[i]||i+1}</div>
+              <div class="mini-rank-nome">${nome}</div>
+              <div class="mini-rank-qtd">${info.qtd}×</div>
+              <div class="mini-rank-val">${brl(info.total)}</div>`;
+            rankCard.appendChild(row);
+          });
+          wrap.appendChild(rankCard);
+        }
       }
 
       frag.appendChild(wrap);
@@ -8021,25 +7998,34 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080808;color:#f0ede8;mi
               <div class="modal-title">⭐ Fidelidade</div>
               <button class="modal-close" onclick="document.getElementById('modal-fid-overlay').classList.remove('show')">✕</button>
             </div>
-            <div class="modal-body">
-              <div style="margin-bottom:16px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                  <span style="font-size:14px">Ativar carimbo digital</span>
-                  <div class="toggle-box${cfg.ativo ? ' on' : ''}" id="fid-toggle" onclick="toggleFidelidade()" style="cursor:pointer;flex-shrink:0"><div class="toggle-knob"></div></div>
+            <div class="modal-body" style="padding:20px 20px 8px">
+
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:16px">
+                <div>
+                  <div style="font-size:14px;font-weight:500">Ativar carimbo digital</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">Rastreia cortes por cliente</div>
                 </div>
-                <div class="field"><label>Cortes para ganhar recompensa</label>
-                  <input class="input" id="fid-meta" type="number" min="3" max="20" value="${cfg.meta || 10}" style="font-size:16px;padding:10px 12px" />
-                </div>
-                <div class="field"><label>Recompensa</label>
-                  <input class="input" id="fid-recompensa" value="${cfg.recompensa || '1 corte grátis'}" placeholder="Ex: 1 corte grátis" style="font-size:14px;padding:10px 12px" />
-                </div>
-                <div style="font-size:12px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:10px 12px;line-height:1.6">
-                  💡 O carimbo é adicionado automaticamente ao registrar um atendimento com WhatsApp do cliente. Ao atingir a meta, o sistema avisa na tela e envia push notification.
-                </div>
+                <div class="toggle-box${cfg.ativo ? ' on' : ''}" id="fid-toggle" onclick="toggleFidelidade()" style="cursor:pointer;flex-shrink:0"><div class="toggle-knob"></div></div>
               </div>
+
+              <div class="field" style="margin-bottom:18px">
+                <label>Cortes para ganhar recompensa</label>
+                <input class="input" id="fid-meta" type="number" min="3" max="20" value="${cfg.meta || 10}" style="font-size:16px;padding:12px 14px;margin-top:2px" />
+                <div style="font-size:11px;color:var(--muted);margin-top:6px">Mínimo 3 · Máximo 20 cortes</div>
+              </div>
+
+              <div class="field" style="margin-bottom:20px">
+                <label>Recompensa</label>
+                <input class="input" id="fid-recompensa" value="${cfg.recompensa || '1 corte grátis'}" placeholder="Ex: 1 corte grátis" style="font-size:14px;padding:12px 14px;margin-top:2px" />
+              </div>
+
+              <div style="font-size:12px;color:var(--muted);background:var(--surface2);border-radius:10px;padding:12px 14px;line-height:1.7;border-left:3px solid var(--gold-dim)">
+                💡 O carimbo é adicionado automaticamente ao registrar um atendimento com WhatsApp do cliente. Ao atingir a meta, o sistema avisa e envia push notification.
+              </div>
+
             </div>
-            <div class="modal-footer">
-              <button class="btn-primary" onclick="salvarFidelidadeConfig()">Salvar</button>
+            <div class="modal-footer" style="padding:16px 20px 0">
+              <button class="btn-primary" onclick="salvarFidelidadeConfig()">Salvar configuração</button>
             </div>
           </div>`;
         document.body.appendChild(overlay);
